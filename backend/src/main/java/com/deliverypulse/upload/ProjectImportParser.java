@@ -311,8 +311,8 @@ public class ProjectImportParser {
                 continue;
             }
             Set<String> linked = new HashSet<>();
-            // Same separators as the risk rules (RuleSupport.blockerTokens): semicolons and line breaks.
-            for (String token : blockerText.split("[;\\r\\n]")) {
+            // Same separators as the risk rules (RuleSupport.blockerTokens): semicolons, commas, line breaks.
+            for (String token : blockerText.split("[;,\\r\\n]")) {
                 String candidate = token.trim();
                 if (candidate.isBlank()) {
                     continue;

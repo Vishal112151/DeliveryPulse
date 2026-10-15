@@ -60,7 +60,7 @@ final class RuleSupport {
             return List.of();
         }
         return task.getBlockerText().lines()
-                .flatMap(line -> java.util.Arrays.stream(line.split(";")))
+                .flatMap(line -> java.util.Arrays.stream(line.split("[;,]")))
                 .map(String::trim)
                 .filter(token -> !token.isBlank())
                 .toList();

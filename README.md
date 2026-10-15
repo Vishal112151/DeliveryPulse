@@ -165,7 +165,7 @@ curl.exe -X POST http://localhost:8080/api/uploads/excel -F "file=@$env:USERPROF
 - Priority: Low, Medium, High, Critical. Status: Not Started, In Progress, Blocked, Done (also Todo, Active, On Hold, Completed, …).
 - Formula cells use the value Excel saved with the file (the formula is not recalculated).
 - Dates: Excel date cells, or text in `yyyy-MM-dd`, `M/d/yyyy`, `M/d/yy`, `d-MMM-yyyy`, `yyyy/M/d`.
-- `Blocker / Dependency`: task IDs from the same project, separated by semicolons or line breaks, become dependency records (a repeated ID creates one record); any other text is kept as descriptive blocker text.
+- `Blocker / Dependency`: task IDs from the same project, separated by semicolons, commas or line breaks, become dependency records (a repeated ID creates one record); any other text is kept as descriptive blocker text.
 
 ### Upload outcomes
 

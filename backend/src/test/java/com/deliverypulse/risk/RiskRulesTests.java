@@ -160,6 +160,16 @@ class RiskRulesTests {
         assertThat(new CriticalTaskAtRiskRule().evaluate(context(List.of(done)))).isEmpty();
     }
 
+    @Test
+    void commaSeparatedTaskIdsAreDependenciesNotDescriptiveBlockers() {
+        Task first = task("RISK-70", Priority.MEDIUM, TaskStatus.IN_PROGRESS, ANALYSIS_DATE.plusDays(2), "Owner", null);
+        Task second = task("RISK-71", Priority.MEDIUM, TaskStatus.IN_PROGRESS, ANALYSIS_DATE.plusDays(2), "Owner", null);
+        Task waiting = task("RISK-72", Priority.MEDIUM, TaskStatus.NOT_STARTED,
+                ANALYSIS_DATE.plusDays(5), "Owner", "RISK-70, RISK-71");
+
+        assertThat(new BlockedTaskRule().evaluate(context(List.of(first, second, waiting)))).isEmpty();
+    }
+
     private AnalysisContext context(List<Task> tasks) {
         return context(tasks, List.of());
     }

@@ -193,6 +193,18 @@ class ProjectImportParserTests {
     }
 
     @Test
+    void treatsCommasAsDependencySeparators() throws Exception {
+        String rows = "A-1,First,Core,Ada,High,Done,,,,\n"
+                + "A-2,Second,Core,Ada,High,Done,,,,\n"
+                + "B-1,Third,Core,Ada,High,In Progress,,,\"A-1, A-2\",\n";
+        ImportDocument document = parser.parseCsv(new ByteArrayInputStream(ImportTestFiles.csv(rows)), "Commas.csv");
+
+        assertThat(document.errors()).isEmpty();
+        assertThat(document.projects().getFirst().dependencies())
+                .extracting(ImportedDependency::prerequisiteTaskKey).containsExactly("A-1", "A-2");
+    }
+
+    @Test
     void readsCachedFormulaResultsInsteadOfFormulaText() throws Exception {
         byte[] bytes;
         try (var workbook = new XSSFWorkbook(); var output = new ByteArrayOutputStream()) {
