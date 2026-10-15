@@ -13,7 +13,7 @@ import { PortfolioRiskSummary, ProjectRiskSummary } from '../core/api.models';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { LucideIconCompatComponent } from '../shared/lucide-icon-compat.component';
 import { SeverityChartComponent } from '../shared/severity-chart.component';
-import { errorMessage, formatDateTime } from '../shared/view-helpers';
+import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers';
 
 @Component({
   standalone: true,
@@ -41,6 +41,9 @@ import { errorMessage, formatDateTime } from '../shared/view-helpers';
       @if (data.projectCount === 0) {
         <div class="empty-panel"><div class="empty-icon"><lucide-icon [img]="ProjectsIcon" [size]="20" /></div><h2>No project data yet</h2><p>Import an Excel workbook or CSV to populate portfolio metrics.</p><a class="button button-primary" routerLink="/upload">Upload project data</a></div>
       } @else {
+        @if (staleProjects(data).length) {
+          <div class="notice" role="status">Not analyzed on {{ formatDate(data.analysisDate) }}: {{ staleProjects(data).join(', ') }}. Their overdue counts and risks are as of their last analysis. Run analysis for a same-day picture.</div>
+        }
         <div class="metric-grid">
           <article class="metric-card"><div class="metric-label">Projects</div><div class="metric-value">{{ data.projectCount }}</div><div class="metric-foot"><lucide-icon [img]="ProjectsIcon" [size]="13" /> Active portfolio</div><span class="metric-accent accent-green"></span></article>
           <article class="metric-card"><div class="metric-label">Tasks</div><div class="metric-value">{{ data.taskCount }}</div><div class="metric-foot">{{ data.completedTaskCount }} complete <span class="foot-divider">/</span> {{ data.incompleteTaskCount }} not done</div><span class="metric-accent accent-ochre"></span></article>
@@ -68,7 +71,7 @@ import { errorMessage, formatDateTime } from '../shared/view-helpers';
               @for (project of sortedProjects(data); track project.projectId) {
                 <a class="comparison-row" [routerLink]="['/projects', project.projectId]">
                   <div class="project-monogram">{{ project.projectName.slice(0, 1) }}</div>
-                  <div class="comparison-main"><div class="comparison-title"><strong>{{ project.projectName }}</strong><span>{{ project.activeRiskCount }} risk{{ project.activeRiskCount === 1 ? '' : 's' }}</span></div>
+                  <div class="comparison-main"><div class="comparison-title"><strong>{{ project.projectName }}</strong><span>{{ project.activeRiskCount }} risk{{ project.activeRiskCount === 1 ? '' : 's' }} · {{ project.analysisTimestamp ? 'as of ' + formatDate(project.analysisDate) : 'not analyzed' }}</span></div>
                     <div class="progress-track" [attr.aria-label]="completionLabel(project)"><span [style.width.%]="completionPercent(project)"></span></div>
                   </div>
                   <div class="comparison-rate">{{ completionPercent(project) }}%</div>
@@ -146,6 +149,7 @@ import { errorMessage, formatDateTime } from '../shared/view-helpers';
     .risk-project { padding:13px; border:1px solid #ecefea; border-radius:6px; color:inherit; text-decoration:none; transition:border-color 140ms ease, transform 140ms ease; }.risk-project:hover { transform:translateY(-1px); border-color:#d8e1d2; }
     .risk-project-top { display:flex; align-items:center; justify-content:space-between; color:#9a6b43; font-size:9px; font-weight:700; }.risk-project-mark { display:grid; width:26px; height:26px; place-items:center; border-radius:6px; color:#bd694b; background:#fbefea; }
     .risk-project h3 { margin:13px 0 10px; color:#314239; font-size:12px; }.risk-counts { display:flex; gap:13px; color:#849087; font-size:9px; }
+    .notice { margin-bottom:13px; padding:10px 12px; border:1px solid #ecdcb8; border-radius:5px; color:#7a5a1e; background:#fdf8ec; font-size:11px; }
     .quiet-empty { grid-column:1/-1; padding:18px 0; color:#829087; font-size:11px; }
     .page-footer { padding:16px 2px 0; color:#97a098; font-size:9px; }
     .state-panel,.empty-panel { display:flex; min-height:240px; align-items:center; justify-content:center; gap:12px; border:1px solid #e5e9e3; border-radius:7px; color:#718077; background:#fff; font-size:12px; }
@@ -168,6 +172,7 @@ export class DashboardPage {
   protected readonly ArrowIcon = ArrowUpRight;
   protected readonly ClockIcon = Clock3;
   protected readonly AlertIcon = TriangleAlert;
+  protected readonly formatDate = formatDate;
   protected readonly formatDateTime = formatDateTime;
 
   constructor() { this.refresh(); }
@@ -196,6 +201,12 @@ export class DashboardPage {
 
   sortedProjects(data: PortfolioRiskSummary): ProjectRiskSummary[] {
     return [...data.projects].sort((a, b) => b.activeRiskCount - a.activeRiskCount || a.projectName.localeCompare(b.projectName));
+  }
+
+  staleProjects(data: PortfolioRiskSummary): string[] {
+    return data.projects
+      .filter((project) => !project.analysisTimestamp || project.analysisDate !== data.analysisDate)
+      .map((project) => project.projectName);
   }
 
   highestRiskProjects(data: PortfolioRiskSummary): ProjectRiskSummary[] {

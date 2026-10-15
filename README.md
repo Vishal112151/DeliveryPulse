@@ -118,10 +118,10 @@ java -jar target\deliverypulse-api-0.1.0-SNAPSHOT.jar
 
 ```powershell
 cd backend
-.\mvnw.cmd test            # 81 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
+.\mvnw.cmd test            # 83 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
 
 cd ..\frontend
-npm test -- --watch=false  # 20 Vitest tests
+npm test -- --watch=false  # 27 Vitest tests
 npm run build              # production build -> frontend\dist\frontend
 ```
 
