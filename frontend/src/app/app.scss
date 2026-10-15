@@ -1,0 +1,41 @@
+:host { display: block; min-height: 100vh; }
+.app-frame { min-height: 100vh; }
+.rail { position: fixed; z-index: 20; inset: 0 auto 0 0; display: flex; width: 236px; flex-direction: column; padding: 24px 16px 18px; color: #f4f7f5; background: #182b27; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 11px 35px; color: inherit; text-decoration: none; }
+.brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 9px; color: #19332d; background: #c1ef74; }
+.brand-name { font-size: 17px; font-weight: 750; letter-spacing: 0; }
+.brand-name span { color: #c1ef74; }
+.rail-label { padding: 0 12px 12px; color: #92a59f; font-size: 10px; font-weight: 700; letter-spacing: 1.15px; }
+nav { display: grid; gap: 5px; }
+.nav-link { display: flex; min-height: 42px; align-items: center; gap: 12px; padding: 0 12px; border-radius: 7px; color: #c2d0cc; font-size: 13px; font-weight: 550; text-decoration: none; transition: color 140ms ease, background 140ms ease; }
+.nav-link:hover { color: #fff; background: #263d37; }
+.nav-link.active { color: #e8f8d1; background: #31473c; box-shadow: inset 3px 0 #c1ef74; }
+.nav-link.active lucide-icon { color: #c1ef74; }
+.rail-bottom { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 15px 11px 0; border-top: 1px solid #354741; color: #b1c0bc; font-size: 11px; }
+.service-dot, .local-badge span { width: 7px; height: 7px; border-radius: 50%; background: #8fd46b; box-shadow: 0 0 0 3px #355343; }
+.service-state { margin-left: auto; color: #8fa59e; }
+.service-dot.down { background: #d95a48; box-shadow: 0 0 0 3px #5a3530; }
+.service-dot.checking { background: #8fa59e; box-shadow: 0 0 0 3px #3b4a45; }
+.content-frame { min-height: 100vh; margin-left: 236px; }
+.topbar { position: sticky; z-index: 10; top: 0; display: flex; height: 62px; align-items: center; justify-content: space-between; padding: 0 34px; border-bottom: 1px solid #e5e9e4; background: rgb(250 251 248 / 94%); backdrop-filter: blur(12px); }
+.breadcrumb { display: flex; align-items: center; gap: 11px; color: #87918a; font-size: 12px; }
+.breadcrumb strong { color: #263630; font-weight: 650; }
+.crumb-divider { color: #c2c9c3; }
+.topbar-right { display: flex; align-items: center; gap: 18px; }
+.local-badge { display: flex; align-items: center; gap: 8px; color: #64736b; font-size: 9px; font-weight: 750; letter-spacing: .8px; }
+.local-badge span { width: 6px; height: 6px; box-shadow: none; }
+.avatar { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid #dde3dc; border-radius: 50%; color: #47594f; background: #edf1e9; font-size: 10px; font-weight: 700; }
+.page-content { width: min(1440px, 100%); margin: 0 auto; padding: 32px 36px 56px; }
+.icon-button { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid #e2e7e1; border-radius: 7px; color: #506159; background: #fff; cursor: pointer; }
+.menu-toggle { display: none; }
+@media (max-width: 800px) {
+	.rail { width: 220px; transform: translateX(-100%); transition: transform 180ms ease; box-shadow: 12px 0 35px rgb(23 40 33 / 12%); }
+	.rail.rail-open { transform: translateX(0); }
+	.content-frame { margin-left: 0; }
+	.menu-toggle { display: grid; }
+	.topbar { justify-content: flex-start; gap: 12px; padding: 0 16px; }
+	.topbar-right { gap: 10px; margin-left: auto; }
+	.local-badge { font-size: 0; }
+	.local-badge span { width: 8px; height: 8px; }
+	.page-content { padding: 24px 17px 42px; }
+}

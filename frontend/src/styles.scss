@@ -1,0 +1,26 @@
+@use '@fontsource-variable/manrope';
+
+:root {
+	color-scheme: light;
+	--ink: #263630;
+	--muted: #78847b;
+	--line: #e5e9e3;
+	--paper: #f7f8f5;
+	--green: #c1ef74;
+	--forest: #182b27;
+	--rust: #c45e49;
+	font-family: 'Manrope Variable', Manrope, sans-serif;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	background: var(--paper);
+	color: var(--ink);
+}
+
+* { box-sizing: border-box; }
+html, body { min-width: 320px; min-height: 100%; margin: 0; }
+body { min-height: 100vh; }
+button, input, select { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #9bbd72; outline-offset: 2px; }
+::selection { color: #18322a; background: #dff3bf; }

@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: deliverypulse-api
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:deliverypulse}
+    username: ${DB_USERNAME:deliverypulse_app}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  time-zone: ${APP_TIME_ZONE:UTC}
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4200}
+  # Optional AI insights. Off by default; the deterministic workflow never depends on it.
+  ai:
+    enabled: ${AI_INSIGHTS_ENABLED:false}
+    provider: ${AI_PROVIDER:anthropic}
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${AI_MODEL:claude-opus-5-5}
+    timeout: ${AI_TIMEOUT:60s}
+    max-retries: ${AI_MAX_RETRIES:2}
+    max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:16000}
+    server-side-fallbacks: ${AI_SERVER_SIDE_FALLBACKS:true}
+    # Project data leaves this machine only when this is explicitly true.
+    external-data-sharing-authorized: ${AI_EXTERNAL_DATA_SHARING_AUTHORIZED:false}
+    include-assignee-names: ${AI_INCLUDE_ASSIGNEE_NAMES:false}
+    include-task-descriptions: ${AI_INCLUDE_TASK_DESCRIPTIONS:false}
+    max-tasks: ${AI_MAX_TASKS:200}
+    max-risks: ${AI_MAX_RISKS:10}
+    max-explained-risks: ${AI_MAX_EXPLAINED_RISKS:5}
+    max-text-length: ${AI_MAX_TEXT_LENGTH:500}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:deliverypulse;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate

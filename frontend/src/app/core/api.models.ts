@@ -1,0 +1,218 @@
+export type TaskStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'BLOCKED' | 'DONE';
+export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type RiskSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type RiskCategory =
+  | 'OVERDUE_TASK'
+  | 'BLOCKED_TASK'
+  | 'CRITICAL_TASK_AT_RISK'
+  | 'DEPENDENCY_RISK'
+  | 'DELIVERY_RISK'
+  | 'DATA_QUALITY_WARNING';
+export type RiskCertainty = 'CONFIRMED' | 'POTENTIAL' | 'DATA_QUALITY';
+export type RiskStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+export type TaskSortField = 'TASK_ID' | 'TASK_NAME' | 'STATUS' | 'PRIORITY' | 'ASSIGNEE' | 'DUE_DATE';
+export type TaskSortDirection = 'ASC' | 'DESC';
+
+export interface ProjectResponse {
+  id: string;
+  name: string;
+  sourceSheetName: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  analysisDate: string | null;
+  analysisTimestamp: string | null;
+  taskCount: number;
+  completedTaskCount: number;
+  incompleteTaskCount: number;
+  overdueTaskCount: number;
+  blockedTaskCount: number;
+  risksBySeverity: Record<RiskSeverity, number>;
+}
+
+export interface TaskResponse {
+  id: string;
+  projectId: string;
+  taskId: string;
+  taskName: string;
+  teamOrModule: string | null;
+  assignee: string | null;
+  priority: Priority;
+  status: TaskStatus;
+  startDate: string | null;
+  dueDate: string | null;
+  overdue: boolean;
+  blockerText: string | null;
+  description: string | null;
+}
+
+export interface TaskPageResponse {
+  content: TaskResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  analysisDate: string;
+  analysisTimestamp: string;
+  sortBy: TaskSortField;
+  sortDirection: TaskSortDirection;
+}
+
+export interface RiskResponse {
+  id: string;
+  category: RiskCategory;
+  severity: RiskSeverity;
+  certainty: RiskCertainty;
+  status: RiskStatus;
+  title: string;
+  explanation: string;
+  evidence: string | null;
+  supportingTaskIds: string[];
+  recommendedAction: string | null;
+  detectedAt: string;
+}
+
+export interface ProjectRiskSummary {
+  projectId: string;
+  projectName: string;
+  analysisDate: string;
+  analysisTimestamp: string | null;
+  taskCount: number;
+  completedTaskCount: number;
+  incompleteTaskCount: number;
+  overdueTaskCount: number;
+  blockedTaskCount: number;
+  activeRiskCount: number;
+  risksBySeverity: Record<RiskSeverity, number>;
+  risksByCategory: Record<RiskCategory, number>;
+  risks: RiskResponse[];
+}
+
+export interface PortfolioRiskSummary {
+  analysisDate: string;
+  analysisTimestamp: string;
+  projectCount: number;
+  taskCount: number;
+  completedTaskCount: number;
+  incompleteTaskCount: number;
+  overdueTaskCount: number;
+  blockedTaskCount: number;
+  activeRiskCount: number;
+  risksBySeverity: Record<RiskSeverity, number>;
+  risksByCategory: Record<RiskCategory, number>;
+  projects: ProjectRiskSummary[];
+}
+
+export interface WeeklyReportResponse extends PortfolioRiskSummary {
+  weekStartDate: string;
+  weekEndDate: string;
+}
+
+export interface ImportIssue {
+  worksheet: string;
+  row: number | null;
+  column: string | null;
+  code: string;
+  message: string;
+}
+
+export interface ImportSummary {
+  projectCount: number;
+  importedTaskCount: number;
+  importedProjects: string[];
+  skippedWorksheets: string[];
+  warnings: ImportIssue[];
+  errors: ImportIssue[];
+}
+
+export interface TaskQuery {
+  page: number;
+  size: number;
+  status?: TaskStatus;
+  priority?: Priority;
+  assignee?: string;
+  overdue?: boolean;
+  analysisDate?: string;
+  sortBy: TaskSortField;
+  sortDirection: TaskSortDirection;
+}
+
+export interface ProblemDetail {
+  title?: string;
+  detail?: string;
+  status?: number;
+  errors?: Record<string, string>;
+}
+export type StatementBasis = 'FACT' | 'ASSUMPTION';
+export type InsightSource = 'AI' | 'DETERMINISTIC_FALLBACK';
+export type InsightStatus =
+  | 'GENERATED'
+  | 'DISABLED'
+  | 'NOT_CONFIGURED'
+  | 'NOT_AUTHORIZED'
+  | 'ANALYSIS_REQUIRED'
+  | 'TIMEOUT'
+  | 'RATE_LIMITED'
+  | 'QUOTA_EXCEEDED'
+  | 'AUTHENTICATION_FAILED'
+  | 'UNAVAILABLE'
+  | 'REFUSED'
+  | 'INVALID_RESPONSE';
+
+export interface InsightStatement {
+  text: string;
+  basis: StatementBasis;
+  supportingTaskIds: string[];
+}
+
+export interface RiskInsight {
+  riskId: string;
+  title: string;
+  severity: RiskSeverity;
+  category: RiskCategory;
+  certainty: RiskCertainty;
+  supportingTaskIds: string[];
+  explanation: InsightStatement[];
+}
+
+export interface ActionInsight {
+  action: string;
+  basis: StatementBasis;
+  supportingTaskIds: string[];
+  relatedRiskIds: string[];
+}
+
+export interface WeeklyStatusInsight {
+  summary: InsightStatement[];
+  progress: InsightStatement[];
+  risksAndIssues: InsightStatement[];
+  nextSteps: InsightStatement[];
+}
+
+export interface ProjectInsightsResponse {
+  projectId: string;
+  projectName: string;
+  source: InsightSource;
+  status: InsightStatus;
+  message: string;
+  model: string | null;
+  generatedAt: string;
+  analysisDate: string | null;
+  executiveSummary: InsightStatement[];
+  riskExplanations: RiskInsight[];
+  recommendedActions: ActionInsight[];
+  weeklyStatus: WeeklyStatusInsight;
+  validationWarnings: string[];
+  disclaimer: string;
+}
+
+export interface AiStatusResponse {
+  enabled: boolean;
+  configured: boolean;
+  externalDataSharingAuthorized: boolean;
+  available: boolean;
+  provider: string;
+  model: string;
+  status: InsightStatus;
+  message: string;
+}
