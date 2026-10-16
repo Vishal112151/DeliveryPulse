@@ -120,7 +120,7 @@ cd backend
 .\mvnw.cmd test            # 83 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
 
 cd ..\frontend
-npm test -- --watch=false  # 27 Vitest tests
+npm test -- --watch=false  # 30 Vitest tests
 npm run build              # production build -> frontend\dist\frontend
 ```
 
@@ -237,7 +237,7 @@ Risk counts are counts of **findings**, not of tasks, and there is no weighted s
 3. Open <http://localhost:4200> → the **Dashboard** shows the empty state.
 4. **Upload data** → choose `DeliveryPulse_Multi_Project_Sample.xlsx` → **Import file** → summary shows 4 projects, 25 tasks, `Read Me` skipped.
 5. **Projects** → four projects (CRM, DataPlatform, ECommerce, MobileApp), each "Not analyzed".
-6. Open **ECommerce** → **Run analysis** → 11 active risks, including the Critical "EC-102 Payment Gateway Integration" (blocked and overdue). Each risk card shows its evidence and supporting task IDs, which can be checked against the task table. Repeat for the other projects, or use **Run analysis** per project on the **Risk analysis** page.
+6. Open **ECommerce** → **Run analysis** → 11 active risks, including the Critical "EC-102 Payment Gateway Integration" (blocked and overdue). Each risk card shows its evidence and supporting task IDs, which can be checked against the task table. For the other projects, click **Analyze all projects** on the **Dashboard** or **Risk analysis** page (it analyzes each project in turn and shows progress).
 7. **Dashboard** → totals (4 projects, 25 tasks, 5 overdue, 4 blocked, 30 risks) and the severity chart.
 8. **Reports** → weekly report; **Print report** or **Download CSV**.
 9. **Upload data** → upload the same workbook again → rejected with "project names already exist"; nothing is duplicated.

@@ -13,11 +13,12 @@ import { PortfolioRiskSummary, ProjectRiskSummary } from '../core/api.models';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { LucideIconCompatComponent } from '../shared/lucide-icon-compat.component';
 import { SeverityChartComponent } from '../shared/severity-chart.component';
+import { AnalyzeAllButtonComponent } from '../shared/analyze-all-button.component';
 import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, LucideIconCompatComponent, SeverityChartComponent],
+  imports: [CommonModule, RouterLink, LucideIconCompatComponent, SeverityChartComponent, AnalyzeAllButtonComponent],
   template: `
     <section class="page-heading">
       <div>
@@ -27,6 +28,7 @@ import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers
       </div>
       <div class="heading-actions">
         @if (portfolio()) { <span class="as-of">As of {{ portfolio()!.analysisDate | date:'MMM d, y' }}</span> }
+        @if (portfolio()?.projectCount) { <app-analyze-all-button [projectIds]="projectIds(portfolio()!)" (finished)="refresh()" /> }
         <button class="button button-secondary" type="button" (click)="refresh()" [disabled]="loading()">
           <lucide-icon [img]="RefreshIcon" [size]="15" /> Refresh
         </button>
@@ -201,6 +203,10 @@ export class DashboardPage {
 
   sortedProjects(data: PortfolioRiskSummary): ProjectRiskSummary[] {
     return [...data.projects].sort((a, b) => b.activeRiskCount - a.activeRiskCount || a.projectName.localeCompare(b.projectName));
+  }
+
+  projectIds(data: PortfolioRiskSummary): string[] {
+    return data.projects.map((project) => project.projectId);
   }
 
   staleProjects(data: PortfolioRiskSummary): string[] {

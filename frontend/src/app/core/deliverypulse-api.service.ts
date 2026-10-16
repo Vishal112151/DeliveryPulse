@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, concatMap, from } from 'rxjs';
 import { API_BASE_URL } from './api.config';
 import {
   AiStatusResponse,
@@ -49,6 +49,11 @@ export class DeliveryPulseApi {
     let params = new HttpParams();
     if (analysisDate) params = params.set('analysisDate', analysisDate);
     return this.http.post<ProjectRiskSummary>(`${this.baseUrl}/projects/${projectId}/analyze`, null, { params });
+  }
+
+  /** Analyzes the projects one after another; emits each project's result as it finishes. */
+  analyzeAll(projectIds: string[]): Observable<ProjectRiskSummary> {
+    return from(projectIds).pipe(concatMap((projectId) => this.analyzeProject(projectId)));
   }
 
   getProjectRisks(projectId: string): Observable<ProjectRiskSummary> {
