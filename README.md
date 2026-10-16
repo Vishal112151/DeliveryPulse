@@ -53,12 +53,13 @@ CREATE DATABASE deliverypulse OWNER deliverypulse_app;
 
 ## 3. Configuration
 
-The backend reads environment variables. Spring Boot does **not** read `.env` files; `.env.example` only documents the names. Set them in the PowerShell session that starts the backend (or in your IDE run configuration). Never commit real credentials.
+Copy `.env.example` to `.env` in the repository root and fill in your values. The backend imports that file on startup (`spring.config.import` in `application.yml`), whether you start it from `backend/` or the root, so you don't need to set anything in the terminal. `.env` is git-ignored; never commit it.
 
 ```powershell
-$env:DB_PASSWORD   = "replace-with-a-local-password"   # required
-$env:APP_TIME_ZONE = "Asia/Kolkata"                     # recommended: your local zone
+Copy-Item .env.example .env   # then edit DB_PASSWORD (required) and APP_TIME_ZONE (recommended)
 ```
+
+A variable set in the terminal (`$env:NAME = "..."`) or an IDE run configuration overrides the same key in `.env`. The file is read as Java `.properties`, so write a backslash in a value as `\\`. Tests ignore your `.env` settings: the `test` profile pins its own database, time zone, CORS origin and AI settings.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -81,9 +82,7 @@ The frontend calls the API at the relative path `/api` (`frontend/src/environmen
 
 ```powershell
 cd backend
-$env:DB_PASSWORD = "replace-with-a-local-password"
-$env:APP_TIME_ZONE = "Asia/Kolkata"
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd spring-boot:run   # reads ..\.env (section 3)
 ```
 
 Wait for `Started DeliveryPulseApplication`, then check:
@@ -234,7 +233,7 @@ Risk counts are counts of **findings**, not of tasks, and there is no weighted s
 ## 9. Live demonstration script
 
 1. Reset the database if it already contains the sample projects (section 2).
-2. Start the backend with `DB_PASSWORD` and `APP_TIME_ZONE` set, then start the frontend (section 4).
+2. Start the backend (it reads `DB_PASSWORD` and `APP_TIME_ZONE` from `.env`), then start the frontend (section 4).
 3. Open <http://localhost:4200> → the **Dashboard** shows the empty state.
 4. **Upload data** → choose `DeliveryPulse_Multi_Project_Sample.xlsx` → **Import file** → summary shows 4 projects, 25 tasks, `Read Me` skipped.
 5. **Projects** → four projects (CRM, DataPlatform, ECommerce, MobileApp), each "Not analyzed".
@@ -253,7 +252,7 @@ The numbers in steps 6–7 assume the demo runs on 2026-10-15. On a different da
 | Symptom | Cause / fix |
 | --- | --- |
 | `mvn` is not recognized | Use `.\mvnw.cmd` in `backend` (no Maven install needed). |
-| Backend fails with `password authentication failed` or `no password supplied` | `DB_PASSWORD` is not set in the terminal that started the backend, or the role password differs. Reset it as an admin with `ALTER ROLE deliverypulse_app WITH PASSWORD '...';`. |
+| Backend fails with `password authentication failed` or `no password supplied` | `DB_PASSWORD` is missing from `.env` (or `.env` is not in the repository root), a terminal variable is overriding it, or the role password differs. Reset it as an admin with `ALTER ROLE deliverypulse_app WITH PASSWORD '...';`. |
 | `Connection refused` on port 5432 | PostgreSQL service is stopped (`Get-Service postgresql*`, then `Start-Service <name>`), or `DB_HOST`/`DB_PORT` are wrong. |
 | Flyway `Validate failed` / Hibernate `Schema-validation` errors | An applied migration was edited, or tables were changed by hand. Restore the migration file, or reset the database in development. |
 | `Port 8080 was already in use` | Stop the other process (`netstat -ano \| findstr :8080`) or set `SERVER_PORT` and `API_PROXY_TARGET` to match. |

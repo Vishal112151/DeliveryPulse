@@ -1,6 +1,10 @@
 spring:
   application:
     name: deliverypulse-api
+  config:
+    # Read the repo-root .env (KEY=value is valid .properties) whether started from backend/ or the root.
+    # Real environment variables still take precedence. Never commit .env.
+    import: "optional:file:../.env[.properties],optional:file:.env[.properties]"
   servlet:
     multipart:
       max-file-size: 10MB
@@ -77,3 +81,12 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+# Tests must not depend on whatever a developer's .env contains.
+app:
+  time-zone: UTC
+  cors:
+    allowed-origin: http://localhost:4200
+  ai:
+    enabled: false
+    api-key: ""
+    external-data-sharing-authorized: false
