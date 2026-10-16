@@ -1,20 +1,28 @@
 package com.deliverypulse.insights;
 
 import java.time.Clock;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.deliverypulse.insights.InsightContextBuilder.InsightReferences;
+import com.deliverypulse.insights.InsightContextBuilder.PortfolioContext;
 import com.deliverypulse.insights.InsightContextBuilder.PreparedInsightContext;
 import com.deliverypulse.insights.InsightResponseValidator.InvalidInsightResponseException;
 import com.deliverypulse.insights.InsightResponseValidator.ValidatedInsights;
 import com.deliverypulse.insights.ProjectInsightsResponse.Source;
 import com.deliverypulse.insights.llm.LlmClient;
 import com.deliverypulse.insights.llm.LlmException;
+import com.deliverypulse.insights.llm.LlmPrompt;
 import com.deliverypulse.insights.llm.LlmResult;
+import com.deliverypulse.risk.PortfolioRiskSummary;
 import com.deliverypulse.risk.ProjectRiskSummary;
 import com.deliverypulse.risk.RiskAnalysisService;
 import com.deliverypulse.task.Task;
@@ -30,6 +38,7 @@ public class AiInsightsService {
 
     static final String AI_DISCLAIMER = "AI-generated draft. Severity, certainty and task data come from "
             + "DeliveryPulse's deterministic rules; verify any ASSUMPTION before acting on it.";
+    static final String PORTFOLIO_NAME = "All projects";
     private static final Logger logger = LoggerFactory.getLogger(AiInsightsService.class);
 
     private final AiInsightsProperties properties;
@@ -77,30 +86,59 @@ public class AiInsightsService {
         }
 
         PreparedInsightContext context = contextBuilder.build(summary, tasks);
+        return generate(promptFactory.create(context), context, "project=" + projectId, summary.projectId(),
+                summary.projectName(), summary.analysisDate(), "AI insights generated from the latest analysis.",
+                (status, message) -> fallback.build(summary, tasks, status, message));
+    }
+
+    /** One briefing across every project. Same safeguards as the project insights: read-only, validated, fallback. */
+    public ProjectInsightsResponse generatePortfolioInsights() {
+        PortfolioRiskSummary portfolio = riskAnalysisService.getPortfolioSummary();
+        BiFunction<InsightStatus, String, ProjectInsightsResponse> fallbackFor =
+                (status, message) -> fallback.buildPortfolio(portfolio, status, message);
+        if (portfolio.projects().stream().noneMatch(project -> project.analysisTimestamp() != null)) {
+            return fallbackFor.apply(InsightStatus.ANALYSIS_REQUIRED,
+                    "Run risk analysis on at least one project first; the briefing explains the analysis findings.");
+        }
+        InsightStatus availability = availability();
+        if (availability != InsightStatus.GENERATED) {
+            return fallbackFor.apply(availability, availabilityMessage(availability));
+        }
+
+        Map<UUID, List<Task>> tasksByProject = new LinkedHashMap<>();
+        portfolio.projects().forEach(project ->
+                tasksByProject.put(project.projectId(), taskRepository.findAllByProjectId(project.projectId())));
+        PortfolioContext context = contextBuilder.buildPortfolio(portfolio.analysisDate(), portfolio.projects(),
+                tasksByProject);
+        return generate(promptFactory.createPortfolio(context), context, "portfolio", null, PORTFOLIO_NAME,
+                portfolio.analysisDate(), "AI briefing generated from each project's latest analysis.", fallbackFor);
+    }
+
+    private ProjectInsightsResponse generate(LlmPrompt prompt, InsightReferences context, String subject,
+            UUID projectId, String name, LocalDate analysisDate, String successMessage,
+            BiFunction<InsightStatus, String, ProjectInsightsResponse> fallbackFor) {
         long started = System.nanoTime();
         try {
-            LlmResult<AiInsightDraft> result = llmClient.generate(promptFactory.create(context), AiInsightDraft.class);
+            LlmResult<AiInsightDraft> result = llmClient.generate(prompt, AiInsightDraft.class);
             ValidatedInsights insights = validator.validate(result.content(), context,
                     properties.maxExplainedRisks());
-            logger.info("AI insights generated: project={}, model={}, inputTokens={}, outputTokens={}, "
-                    + "warnings={}, elapsedMs={}", projectId, result.model(), result.inputTokens(),
+            logger.info("AI insights generated: {}, model={}, inputTokens={}, outputTokens={}, "
+                    + "warnings={}, elapsedMs={}", subject, result.model(), result.inputTokens(),
                     result.outputTokens(), insights.warnings().size(), elapsedMs(started));
-            return new ProjectInsightsResponse(summary.projectId(), summary.projectName(), Source.AI,
-                    InsightStatus.GENERATED, "AI insights generated from the latest analysis.", result.model(),
-                    clock.instant(), summary.analysisDate(), insights.executiveSummary(),
+            return new ProjectInsightsResponse(projectId, name, Source.AI, InsightStatus.GENERATED, successMessage,
+                    result.model(), clock.instant(), analysisDate, insights.executiveSummary(),
                     insights.riskExplanations(), insights.recommendedActions(), insights.weeklyStatus(),
                     insights.warnings(), AI_DISCLAIMER);
         } catch (LlmException exception) {
             InsightStatus status = InsightStatus.valueOf(exception.getFailure().name());
             // Log the category only: prompts and responses may contain project data.
-            logger.warn("AI insights unavailable, using deterministic fallback: project={}, reason={}, elapsedMs={}",
-                    projectId, status, elapsedMs(started));
-            return fallback.build(summary, tasks, status, exception.getMessage()
-                    + " Showing the deterministic summary instead.");
+            logger.warn("AI insights unavailable, using deterministic fallback: {}, reason={}, elapsedMs={}",
+                    subject, status, elapsedMs(started));
+            return fallbackFor.apply(status, exception.getMessage() + " Showing the deterministic summary instead.");
         } catch (InvalidInsightResponseException exception) {
-            logger.warn("AI insights rejected by validation, using deterministic fallback: project={}, reason={}",
-                    projectId, exception.getMessage());
-            return fallback.build(summary, tasks, InsightStatus.INVALID_RESPONSE,
+            logger.warn("AI insights rejected by validation, using deterministic fallback: {}, reason={}",
+                    subject, exception.getMessage());
+            return fallbackFor.apply(InsightStatus.INVALID_RESPONSE,
                     "The AI response failed validation. Showing the deterministic summary instead.");
         }
     }

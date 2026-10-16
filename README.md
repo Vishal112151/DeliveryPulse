@@ -117,10 +117,10 @@ java -jar target\deliverypulse-api-0.1.0-SNAPSHOT.jar
 
 ```powershell
 cd backend
-.\mvnw.cmd test            # 83 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
+.\mvnw.cmd test            # 90 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
 
 cd ..\frontend
-npm test -- --watch=false  # 30 Vitest tests
+npm test -- --watch=false  # 31 Vitest tests
 npm run build              # production build -> frontend\dist\frontend
 ```
 
@@ -196,6 +196,7 @@ Uploads are atomic: one bad row rejects the whole file. Project names are unique
 | `GET /api/reports/weekly` | Seven-day window ending today plus the current snapshot |
 | `GET /api/ai/status` | Whether AI insights are enabled, configured and authorized (never returns the key) |
 | `POST /api/projects/{id}/insights` | Executive summary, top-risk explanations, actions and a weekly status draft — AI-generated when available, deterministic otherwise (section 12) |
+| `POST /api/portfolio/insights` | The same four sections across all projects (`projectId` is `null`, `projectName` is `All projects`) |
 
 Errors use RFC 7807 Problem Details (`{"status":404,"title":"Not Found","detail":"Project not found",...}`). Upload validation responses (`409`/`422`) return the import summary with an `errors` array instead.
 
@@ -279,12 +280,14 @@ The numbers in steps 6–7 assume the demo runs on 2026-10-15. On a different da
 
 ## 12. Optional AI insights
 
-The project detail page has an **Insights** panel. It produces four things:
+The project detail page has an **Insights** panel, and the Dashboard has a **Portfolio briefing** that covers every project at once. Each produces four things:
 
 - an executive summary
 - explanations of the highest-priority risks
 - recommended actions
-- a draft weekly status report
+- a draft weekly status report (for the portfolio: one line per project, worst first)
+
+The portfolio briefing sends each project's metrics, its five highest-priority risks and the tasks those risks cite. Top risks are chosen so that each project's worst risk is considered before any project's second, and a project that has not been analyzed is reported as unknown, not healthy. Without AI, the same sections are built from the stored findings.
 
 Every statement is labelled **FACT** (stated by the records, with supporting task IDs) or **ASSUMPTION** (an inference).
 

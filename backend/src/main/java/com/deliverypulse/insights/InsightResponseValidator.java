@@ -16,7 +16,7 @@ import com.deliverypulse.insights.AiInsightDraft.DraftAction;
 import com.deliverypulse.insights.AiInsightDraft.DraftRiskExplanation;
 import com.deliverypulse.insights.AiInsightDraft.DraftStatement;
 import com.deliverypulse.insights.AiInsightDraft.DraftWeeklyStatus;
-import com.deliverypulse.insights.InsightContextBuilder.PreparedInsightContext;
+import com.deliverypulse.insights.InsightContextBuilder.InsightReferences;
 import com.deliverypulse.insights.ProjectInsightsResponse.ActionInsight;
 import com.deliverypulse.insights.ProjectInsightsResponse.InsightStatement;
 import com.deliverypulse.insights.ProjectInsightsResponse.RiskInsight;
@@ -37,7 +37,7 @@ public class InsightResponseValidator {
     static final int MAX_SECTION_ITEMS = 8;
     private static final Pattern CONTROL_CHARACTERS = Pattern.compile("[\\p{Cntrl}&&[^\\n]]");
 
-    public ValidatedInsights validate(AiInsightDraft draft, PreparedInsightContext context, int maxExplainedRisks) {
+    public ValidatedInsights validate(AiInsightDraft draft, InsightReferences context, int maxExplainedRisks) {
         if (draft == null) {
             throw new InvalidInsightResponseException("The model returned no content.");
         }
@@ -63,7 +63,7 @@ public class InsightResponseValidator {
         return new ValidatedInsights(summary, risks, actions, weeklyStatus, List.copyOf(warnings));
     }
 
-    private List<InsightStatement> statements(List<DraftStatement> drafts, PreparedInsightContext context,
+    private List<InsightStatement> statements(List<DraftStatement> drafts, InsightReferences context,
             String section, int maxItems, List<String> warnings) {
         List<InsightStatement> result = new ArrayList<>();
         if (drafts == null) {
@@ -84,7 +84,7 @@ public class InsightResponseValidator {
     }
 
     private Optional<InsightStatement> statement(String rawText, StatementBasis rawBasis, List<String> rawTaskIds,
-            PreparedInsightContext context, String section, List<String> warnings) {
+            InsightReferences context, String section, List<String> warnings) {
         Optional<String> text = cleanText(rawText, section, warnings);
         if (text.isEmpty()) {
             return Optional.empty();
@@ -101,7 +101,7 @@ public class InsightResponseValidator {
         return Optional.of(new InsightStatement(text.get(), basis, taskIds.get()));
     }
 
-    private List<RiskInsight> riskExplanations(List<DraftRiskExplanation> drafts, PreparedInsightContext context,
+    private List<RiskInsight> riskExplanations(List<DraftRiskExplanation> drafts, InsightReferences context,
             int maxExplainedRisks, List<String> warnings) {
         List<RiskInsight> result = new ArrayList<>();
         if (drafts == null) {
@@ -138,7 +138,7 @@ public class InsightResponseValidator {
         return result;
     }
 
-    private List<ActionInsight> actions(List<DraftAction> drafts, PreparedInsightContext context,
+    private List<ActionInsight> actions(List<DraftAction> drafts, InsightReferences context,
             List<String> warnings) {
         List<ActionInsight> result = new ArrayList<>();
         if (drafts == null) {
@@ -179,7 +179,7 @@ public class InsightResponseValidator {
     }
 
     /** Maps cited IDs to their canonical spelling; empty Optional means the item cites an unknown task. */
-    private Optional<List<String>> taskIds(List<String> rawTaskIds, PreparedInsightContext context,
+    private Optional<List<String>> taskIds(List<String> rawTaskIds, InsightReferences context,
             String section, List<String> warnings) {
         Set<String> canonical = new LinkedHashSet<>();
         for (String rawId : rawTaskIds == null ? List.<String>of() : rawTaskIds) {

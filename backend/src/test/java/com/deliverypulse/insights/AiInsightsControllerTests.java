@@ -105,6 +105,21 @@ class AiInsightsControllerTests {
         }
 
         @Test
+        void servesADeterministicPortfolioBriefingAcrossProjects() throws Exception {
+            analyzedProject();
+
+            mockMvc.perform(post("/api/portfolio/insights"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.projectId").doesNotExist())
+                    .andExpect(jsonPath("$.projectName").value("All projects"))
+                    .andExpect(jsonPath("$.source").value("DETERMINISTIC_FALLBACK"))
+                    .andExpect(jsonPath("$.status").value("DISABLED"))
+                    .andExpect(jsonPath("$.riskExplanations[0].severity").value("CRITICAL"))
+                    .andExpect(jsonPath("$.riskExplanations[0].title").value("Atlas: Critical-priority task at risk: AT-2"))
+                    .andExpect(jsonPath("$.weeklyStatus.summary[0].text").value(org.hamcrest.Matchers.startsWith("Atlas: ")));
+        }
+
+        @Test
         void returnsNotFoundForUnknownProjects() throws Exception {
             mockMvc.perform(post("/api/projects/{id}/insights", UUID.randomUUID()))
                     .andExpect(status().isNotFound())

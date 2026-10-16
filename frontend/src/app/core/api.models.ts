@@ -190,7 +190,8 @@ export interface WeeklyStatusInsight {
 }
 
 export interface ProjectInsightsResponse {
-  projectId: string;
+  /** null for the portfolio briefing. */
+  projectId: string | null;
   projectName: string;
   source: InsightSource;
   status: InsightStatus;

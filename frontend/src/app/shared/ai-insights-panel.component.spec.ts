@@ -36,6 +36,29 @@ describe('AiInsightsPanelComponent', () => {
 
   afterEach(() => http.verify());
 
+  it('in portfolio mode requests the cross-project briefing and labels it per project', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(AiInsightsPanelComponent);
+    fixture.detectChanges();
+    http.expectOne('/api/ai/status').flush({ available: false, model: 'claude-opus-5-5', provider: 'anthropic', message: '' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Portfolio briefing');
+    expect(fixture.nativeElement.textContent).toContain('Generate briefing');
+
+    fixture.componentInstance.generate();
+    http.expectOne({ method: 'POST', url: '/api/portfolio/insights' }).flush(insights({
+      projectId: null, projectName: 'All projects', source: 'DETERMINISTIC_FALLBACK', status: 'DISABLED',
+      weeklyStatus: { summary: [statement('CloudMigration: 24 active risk(s).', 'FACT', [])], progress: [], risksAndIssues: [], nextSteps: [] },
+    }));
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Draft portfolio status report');
+    expect(text).toContain('Project by project');
+    expect(text).toContain('CloudMigration: 24 active risk(s).');
+  });
+
   it('offers a local summary and makes no generation call until asked when AI is off', () => {
     const fixture = render({ available: false });
     const text = fixture.nativeElement.textContent as string;

@@ -14,11 +14,12 @@ import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { LucideIconCompatComponent } from '../shared/lucide-icon-compat.component';
 import { SeverityChartComponent } from '../shared/severity-chart.component';
 import { AnalyzeAllButtonComponent } from '../shared/analyze-all-button.component';
+import { AiInsightsPanelComponent } from '../shared/ai-insights-panel.component';
 import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, LucideIconCompatComponent, SeverityChartComponent, AnalyzeAllButtonComponent],
+  imports: [CommonModule, RouterLink, LucideIconCompatComponent, SeverityChartComponent, AnalyzeAllButtonComponent, AiInsightsPanelComponent],
   template: `
     <section class="page-heading">
       <div>
@@ -97,6 +98,7 @@ import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers
             } @empty { <div class="quiet-empty">No active risks across analyzed projects.</div> }
           </div>
         </section>
+        <app-ai-insights-panel class="portfolio-insights" />
       }
     }
     <div class="page-footer">Data is calculated from imported project records. No external project system is connected.</div>
@@ -146,6 +148,7 @@ import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers
     .progress-track { overflow:hidden; height:4px; border-radius:4px; background:#edf0ec; }.progress-track span { display:block; height:100%; border-radius:4px; background:#89ad71; }
     .comparison-rate { color:#53645a; font-size:10px; font-weight:700; text-align:right; }.row-arrow { color:#9ca79f; }
     .comparison-foot { padding:11px 0; color:#909992; font-size:9px; }
+    .portfolio-insights { display:block; margin-top:15px; }
     .highest-risk { margin-top:15px; padding:19px 20px 20px; }
     .risk-project-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px; margin-top:18px; }
     .risk-project { padding:13px; border:1px solid #ecefea; border-radius:6px; color:inherit; text-decoration:none; transition:border-color 140ms ease, transform 140ms ease; }.risk-project:hover { transform:translateY(-1px); border-color:#d8e1d2; }

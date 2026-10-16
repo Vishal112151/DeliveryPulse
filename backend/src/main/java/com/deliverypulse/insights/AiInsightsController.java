@@ -34,4 +34,13 @@ public class AiInsightsController {
     public ProjectInsightsResponse generateInsights(@PathVariable UUID projectId) {
         return aiInsightsService.generateProjectInsights(projectId);
     }
+
+    @PostMapping("/api/portfolio/insights")
+    @Operation(summary = "Generate a portfolio briefing across all projects",
+            description = "Same shape as project insights, with projectId null and projectName \"All projects\". "
+                    + "AI-generated when enabled and authorized, otherwise the deterministic fallback. "
+                    + "Never modifies stored data.")
+    public ProjectInsightsResponse generatePortfolioInsights() {
+        return aiInsightsService.generatePortfolioInsights();
+    }
 }

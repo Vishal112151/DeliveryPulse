@@ -31,6 +31,8 @@ public class InsightContextBuilder {
             .comparingInt((RiskResponse risk) -> severityRank(risk.severity()))
             .thenComparingInt(risk -> certaintyRank(risk.certainty()))
             .thenComparing(RiskResponse::title);
+    /** Keeps a large portfolio's prompt bounded; the rest are counted in omittedRiskCount. */
+    static final int PORTFOLIO_RISKS_PER_PROJECT = 5;
 
     private final AiInsightsProperties properties;
 
@@ -47,9 +49,7 @@ public class InsightContextBuilder {
             RiskResponse risk = sentRisks.get(index);
             String ref = "R" + (index + 1);
             risksByRef.put(ref, risk);
-            riskRecords.add(new RiskRecord(ref, risk.category().name(), risk.severity().name(),
-                    risk.certainty().name(), limit(risk.title()), limit(risk.explanation()), limit(risk.evidence()),
-                    risk.supportingTaskIds(), limit(risk.recommendedAction())));
+            riskRecords.add(riskRecord(ref, risk));
         }
         List<String> explainRefs = risksByRef.keySet().stream().limit(properties.maxExplainedRisks()).toList();
 
@@ -69,32 +69,105 @@ public class InsightContextBuilder {
         LocalDate analysisDate = summary.analysisDate();
         List<TaskRecord> taskRecords = sentTasks.stream()
                 .sorted(Comparator.comparing(Task::getTaskKey, String.CASE_INSENSITIVE_ORDER))
-                .map(task -> new TaskRecord(
-                        task.getTaskKey(),
-                        limit(task.getTaskName()),
-                        limit(task.getTeamOrModule()),
-                        assignee(task.getAssignee(), pseudonyms),
-                        task.getPriority().name(),
-                        task.getStatus().name(),
-                        task.getStartDate(),
-                        task.getDueDate(),
-                        task.getStatus() != TaskStatus.DONE && task.getDueDate() != null
-                                && analysisDate != null && task.getDueDate().isBefore(analysisDate),
-                        limit(task.getBlockerText()),
-                        properties.includeTaskDescriptions() ? limit(task.getDescription()) : null))
+                .map(task -> taskRecord(task, analysisDate, pseudonyms))
                 .toList();
 
         InsightPayload payload = new InsightPayload(
                 summary.projectName(),
                 analysisDate,
-                new Metrics(summary.taskCount(), summary.completedTaskCount(), summary.incompleteTaskCount(),
-                        summary.overdueTaskCount(), summary.blockedTaskCount(), summary.activeRiskCount()),
+                metrics(summary),
                 taskRecords,
                 riskRecords,
                 explainRefs,
                 tasks.size() - sentTasks.size(),
                 rankedRisks.size() - sentRisks.size());
         return new PreparedInsightContext(payload, risksByRef, taskIdsByNormalized);
+    }
+
+    /**
+     * Portfolio view: every project's metrics, its top risks (refs unique across the portfolio) and only
+     * the tasks those risks cite, so the payload stays small however many projects there are.
+     */
+    public PortfolioContext buildPortfolio(LocalDate snapshotDate, List<ProjectRiskSummary> summaries,
+            Map<java.util.UUID, List<Task>> tasksByProject) {
+        Map<String, RiskResponse> risksByRef = new LinkedHashMap<>();
+        // ponytail: task IDs are matched portfolio-wide; two projects reusing one ID both count as "known".
+        Map<String, String> taskIdsByNormalized = new LinkedHashMap<>();
+        Map<String, String> pseudonyms = new HashMap<>();
+        List<ProjectRecord> projects = new ArrayList<>();
+        int omittedRisks = 0;
+        for (ProjectRiskSummary summary : summaries) {
+            List<Task> tasks = tasksByProject.getOrDefault(summary.projectId(), List.of());
+            tasks.forEach(task -> taskIdsByNormalized.putIfAbsent(normalize(task.getTaskKey()), task.getTaskKey()));
+            List<RiskResponse> ranked = summary.risks().stream().sorted(PRIORITY_ORDER).toList();
+            List<RiskResponse> sent = ranked.stream().limit(PORTFOLIO_RISKS_PER_PROJECT).toList();
+            omittedRisks += ranked.size() - sent.size();
+            List<RiskRecord> riskRecords = new ArrayList<>();
+            Set<String> citedTaskIds = new HashSet<>();
+            for (RiskResponse risk : sent) {
+                String ref = "R" + (risksByRef.size() + 1);
+                risksByRef.put(ref, risk);
+                riskRecords.add(riskRecord(ref, risk));
+                risk.supportingTaskIds().forEach(id -> citedTaskIds.add(normalize(id)));
+            }
+            List<TaskRecord> citedTasks = tasks.stream()
+                    .filter(task -> citedTaskIds.contains(normalize(task.getTaskKey())))
+                    .sorted(Comparator.comparing(Task::getTaskKey, String.CASE_INSENSITIVE_ORDER))
+                    .map(task -> taskRecord(task, summary.analysisDate(), pseudonyms))
+                    .toList();
+            projects.add(new ProjectRecord(limit(summary.projectName()), summary.analysisTimestamp() != null,
+                    summary.analysisDate(), metrics(summary), riskRecords, citedTasks));
+        }
+        Map<RiskResponse, String> refByRisk = new java.util.IdentityHashMap<>();
+        Map<RiskResponse, Object> projectByRisk = new java.util.IdentityHashMap<>();
+        risksByRef.forEach((ref, risk) -> refByRisk.put(risk, ref));
+        summaries.forEach(summary -> summary.risks().forEach(risk -> projectByRisk.put(risk, summary.projectId())));
+        List<RiskResponse> ranked = risksByRef.values().stream().sorted(PRIORITY_ORDER).toList();
+        List<String> explainRefs = spreadAcrossProjects(ranked, projectByRisk::get, properties.maxExplainedRisks())
+                .stream().map(refByRisk::get).toList();
+        return new PortfolioContext(new PortfolioPayload(snapshotDate, projects, explainRefs, omittedRisks),
+                risksByRef, taskIdsByNormalized);
+    }
+
+    /**
+     * Picks up to {@code limit} items from a priority-ranked list, taking each project's best item before any
+     * project's second, so equally severe risks are not all drawn from one project.
+     */
+    static <T> List<T> spreadAcrossProjects(List<T> ranked, java.util.function.Function<T, Object> projectOf,
+            int limit) {
+        List<T> picked = new ArrayList<>();
+        Set<Object> covered = new HashSet<>();
+        ranked.stream().filter(item -> covered.add(projectOf.apply(item))).limit(limit).forEach(picked::add);
+        ranked.stream().filter(item -> !picked.contains(item)).limit(Math.max(0, limit - picked.size()))
+                .forEach(picked::add);
+        return picked.stream().sorted(java.util.Comparator.comparingInt(ranked::indexOf)).toList();
+    }
+
+    private RiskRecord riskRecord(String ref, RiskResponse risk) {
+        return new RiskRecord(ref, risk.category().name(), risk.severity().name(), risk.certainty().name(),
+                limit(risk.title()), limit(risk.explanation()), limit(risk.evidence()), risk.supportingTaskIds(),
+                limit(risk.recommendedAction()));
+    }
+
+    private TaskRecord taskRecord(Task task, LocalDate analysisDate, Map<String, String> pseudonyms) {
+        return new TaskRecord(
+                task.getTaskKey(),
+                limit(task.getTaskName()),
+                limit(task.getTeamOrModule()),
+                assignee(task.getAssignee(), pseudonyms),
+                task.getPriority().name(),
+                task.getStatus().name(),
+                task.getStartDate(),
+                task.getDueDate(),
+                task.getStatus() != TaskStatus.DONE && task.getDueDate() != null
+                        && analysisDate != null && task.getDueDate().isBefore(analysisDate),
+                limit(task.getBlockerText()),
+                properties.includeTaskDescriptions() ? limit(task.getDescription()) : null);
+    }
+
+    private static Metrics metrics(ProjectRiskSummary summary) {
+        return new Metrics(summary.taskCount(), summary.completedTaskCount(), summary.incompleteTaskCount(),
+                summary.overdueTaskCount(), summary.blockedTaskCount(), summary.activeRiskCount());
     }
 
     static String normalize(String taskId) {
@@ -163,10 +236,35 @@ public class InsightContextBuilder {
             String explanation, String evidence, List<String> supportingTaskIds, String recommendedAction) {
     }
 
+    /** The portfolio data block serialized into the prompt. */
+    public record PortfolioPayload(
+            LocalDate snapshotDate,
+            List<ProjectRecord> projects,
+            List<String> explainRiskRefs,
+            int omittedRiskCount) {
+    }
+
+    public record ProjectRecord(String name, boolean analyzed, LocalDate analysisDate, Metrics metrics,
+            List<RiskRecord> risks, List<TaskRecord> tasksCitedByRisks) {
+    }
+
+    /** What the validator needs to map model references back to real records. */
+    public interface InsightReferences {
+        Map<String, RiskResponse> risksByRef();
+
+        Map<String, String> taskIdsByNormalized();
+    }
+
     /** Payload plus the lookups the validator needs to map model references back to real records. */
     public record PreparedInsightContext(
             InsightPayload payload,
             Map<String, RiskResponse> risksByRef,
-            Map<String, String> taskIdsByNormalized) {
+            Map<String, String> taskIdsByNormalized) implements InsightReferences {
+    }
+
+    public record PortfolioContext(
+            PortfolioPayload payload,
+            Map<String, RiskResponse> risksByRef,
+            Map<String, String> taskIdsByNormalized) implements InsightReferences {
     }
 }

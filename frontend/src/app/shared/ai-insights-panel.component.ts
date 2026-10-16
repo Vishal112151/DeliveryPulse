@@ -14,22 +14,25 @@ import { errorMessage, formatDateTime, titleCase } from './view-helpers';
   template: `
     <section class="surface insights-surface" aria-labelledby="insights-heading">
       <div class="section-heading">
-        <div><div class="eyebrow">INSIGHTS</div><h2 id="insights-heading">Summary &amp; weekly status</h2></div>
+        <div><div class="eyebrow">{{ projectId() ? 'INSIGHTS' : 'PORTFOLIO INSIGHTS' }}</div><h2 id="insights-heading">{{ projectId() ? 'Summary &amp; weekly status' : 'Portfolio briefing' }}</h2></div>
         <div class="heading-actions">
           @if (aiStatus(); as status) {
             <span class="ai-chip" [class.on]="status.available" [title]="status.message">{{ status.available ? 'AI: ' + status.model : 'AI off' }}</span>
           }
           <button class="button button-secondary" type="button" (click)="generate()" [disabled]="loading()">
-            @if (loading()) { <span class="spinner"></span>Generating… } @else { <lucide-icon [img]="RefreshIcon" [size]="15" /> {{ aiStatus()?.available ? 'Generate AI insights' : 'Generate summary' }} }
+            @if (loading()) { <span class="spinner"></span>Generating… } @else { <lucide-icon [img]="RefreshIcon" [size]="15" /> {{ aiStatus()?.available ? (projectId() ? 'Generate AI insights' : 'Generate AI briefing') : (projectId() ? 'Generate summary' : 'Generate briefing') }} }
           </button>
         </div>
       </div>
 
       @if (error()) { <div class="table-error" role="alert">{{ error() }}</div> }
       @if (!insights() && !loading() && !error()) {
-        <p class="intro">{{ aiStatus()?.available
-          ? 'Generates an AI-drafted executive summary, risk explanations, actions and weekly status from the tasks and findings on this page. Task data is sent to ' + aiStatus()!.provider + '.'
-          : 'Builds an executive summary, risk explanations, actions and weekly status from the deterministic findings. No data leaves this server.' }}</p>
+        <p class="intro">{{ (projectId()
+            ? 'An executive summary, risk explanations, actions and weekly status for this project'
+            : 'One briefing across all projects: which deliveries are on track or at risk, the top risks portfolio-wide, this week's actions and a project-by-project status')
+          + (aiStatus()?.available
+            ? ', drafted by AI from the stored tasks and findings. Task data is sent to ' + aiStatus()!.provider + '.'
+            : ', built from the deterministic findings. No data leaves this server.') }}</p>
       }
 
       @if (insights(); as data) {
@@ -66,7 +69,7 @@ import { errorMessage, formatDateTime, titleCase } from './view-helpers';
         }
 
         <details class="weekly" [open]="true">
-          <summary>Draft weekly status report</summary>
+          <summary>{{ projectId() ? 'Draft weekly status report' : 'Draft portfolio status report' }}</summary>
           @for (section of weeklySections(data); track section.title) {
             @if (section.items.length) {
               <h4>{{ section.title }}</h4>
@@ -121,7 +124,8 @@ import { errorMessage, formatDateTime, titleCase } from './view-helpers';
   `],
 })
 export class AiInsightsPanelComponent {
-  readonly projectId = input.required<string>();
+  /** Omit for the portfolio briefing across all projects. */
+  readonly projectId = input<string | null>(null);
   private readonly api = inject(DeliveryPulseApi);
   private readonly destroyRef = inject(DestroyRef);
   readonly aiStatus = signal<AiStatusResponse | null>(null);
@@ -147,7 +151,9 @@ export class AiInsightsPanelComponent {
 
   generate(): void {
     this.loading.set(true); this.error.set('');
-    this.api.generateInsights(this.projectId()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    const projectId = this.projectId();
+    const request = projectId ? this.api.generateInsights(projectId) : this.api.generatePortfolioInsights();
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => { this.insights.set(data); this.loading.set(false); },
       error: (error: unknown) => { this.error.set(errorMessage(error)); this.loading.set(false); },
     });
@@ -155,7 +161,7 @@ export class AiInsightsPanelComponent {
 
   weeklySections(data: ProjectInsightsResponse): { title: string; items: InsightStatement[] }[] {
     return [
-      { title: 'Summary', items: data.weeklyStatus.summary },
+      { title: this.projectId() ? 'Summary' : 'Project by project', items: data.weeklyStatus.summary },
       { title: 'Progress', items: data.weeklyStatus.progress },
       { title: 'Risks and issues', items: data.weeklyStatus.risksAndIssues },
       { title: 'Next steps', items: data.weeklyStatus.nextSteps },

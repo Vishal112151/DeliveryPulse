@@ -72,6 +72,10 @@ export class DeliveryPulseApi {
     return this.http.post<ProjectInsightsResponse>(`${this.baseUrl}/projects/${projectId}/insights`, null);
   }
 
+  generatePortfolioInsights(): Observable<ProjectInsightsResponse> {
+    return this.http.post<ProjectInsightsResponse>(`${this.baseUrl}/portfolio/insights`, null);
+  }
+
   upload(file: File): Observable<ImportSummary> {
     const body = new FormData();
     body.append('file', file, file.name);

@@ -61,6 +61,9 @@ describe('Pages against the API', () => {
       project('CRM', false),
     ]));
     fixture.detectChanges();
+    http.expectOne('/api/ai/status').flush({ available: false, model: 'm', provider: 'anthropic', message: '' });
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('Portfolio briefing');
 
     expect(text(fixture)).toContain('16');
     expect(text(fixture)).toContain('Not analyzed on Oct 15, 2026: CRM.');
