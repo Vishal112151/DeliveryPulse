@@ -5,7 +5,8 @@ DeliveryPulse is a locally run proof of concept that imports project task data f
 - **Backend:** Java 21, Spring Boot 3.5.6, Spring Data JPA, Flyway, PostgreSQL, Apache POI 5.4.1, Apache Commons CSV 1.14.1, springdoc-openapi
 - **Frontend:** Angular 22, TypeScript 6, Chart.js 4, Lucide icons, Vitest
 - **Optional:** AI insights via the Anthropic Java SDK (`anthropic-java` 2.34.0), off by default — see section 12
-- **Not included:** authentication, Jira/Planner integration
+- **Optional:** read-only Jira Cloud sync, off by default (section 13)
+- **Not included:** authentication, scheduled jobs, Planner integration
 
 The API is intended for trusted local use. Do not expose it publicly without adding authentication, authorization and deployment security controls.
 
@@ -222,6 +223,8 @@ Every import records the status each task enters (`task_status_history`): the fi
 | `GET /api/dashboard/portfolio` | Portfolio totals and per-project summaries |
 | `GET /api/reports/weekly` | Seven-day window ending today: the current snapshot plus `activity` and `activityByProject` (tasks added, completed, newly blocked, unblocked, defects opened and closed, from the status history) |
 | `GET /api/ai/status` | Whether AI insights are enabled, configured and authorized (never returns the key) |
+| `GET /api/integrations/jira/status` | Whether Jira sync is configured, the site URL and project keys (never the email or token) |
+| `POST /api/integrations/jira/sync` | Import the configured Jira projects as an update (same response as an upload) |
 | `POST /api/projects/{id}/insights` | Executive summary, top-risk explanations, actions and a weekly status draft — AI-generated when available, deterministic otherwise (section 12) |
 | `POST /api/portfolio/insights` | The same four sections across all projects (`projectId` is `null`, `projectName` is `All projects`) |
 
@@ -298,7 +301,8 @@ The numbers in steps 6–7 assume the demo runs on 2026-10-15. On a different da
 
 ## 11. Known limitations
 
-- No authentication or authorization.
+- No authentication or authorization. With Jira sync configured, anyone who can reach the API can trigger a sync (read-only) with your token.
+- Jira sync runs only when someone clicks **Sync now** (no schedule), and it reads only Jira Cloud.
 - No project delete API; resetting the database is the only way to remove a project. Update uploads never remove tasks that are missing from the file.
 - No import-history endpoint (import runs are recorded in `import_runs` but not exposed); no dependency-graph endpoint (project detail shows the original blocker text and the risk supporting task IDs).
 - Each project's metrics and risks are as of its own last analysis date. The portfolio, dashboard and weekly report add those up while labelling the snapshot with today's date, so a project analyzed days ago contributes its older numbers. Re-run analysis on each project for a same-day picture.
@@ -393,3 +397,70 @@ All AI tests use mocked or faked providers; no API key or paid access is needed:
 
 A live call to Anthropic has not been exercised because no key is configured in this environment.
 
+
+---
+
+## 13. Optional Jira sync
+
+DeliveryPulse can read issues from **Jira Cloud** and import them like an upload with **Update existing projects** ticked: each Jira project becomes a DeliveryPulse project named after it, issues are matched by key, and every sync records status changes. Milestones, defects, recurring blockers and the weekly activity then work for Jira data too. The sync only reads from Jira; it never writes to it.
+
+### Turning it on
+
+1. Create an API token at <https://id.atlassian.com/manage-profile/security/api-tokens>.
+2. Add to `.env` and restart the backend:
+   ```
+   JIRA_BASE_URL=https://yourname.atlassian.net
+   JIRA_EMAIL=the-email-you-log-in-with
+   JIRA_API_TOKEN=...
+   JIRA_PROJECT_KEYS=PAY,MOB,DATA,CRMX,OPS   # comma-separated
+   ```
+3. **Upload data** now shows a **Sync from Jira** panel. Click **Sync now**, then **Run analysis** on the synced projects.
+
+Optional: `JIRA_BLOCKED_LABEL` (default `blocked`), `JIRA_TIMEOUT` (default `30s`), `JIRA_MAX_ISSUES` (default `5000`; extra issues are skipped with a warning).
+
+### Field mapping
+
+| DeliveryPulse | Jira |
+| --- | --- |
+| Project | The Jira project (its name) |
+| Task ID / Task Name | Issue key / Summary |
+| Type | Issue type `Bug` or `Defect` → Defect; anything else → Task |
+| Priority | Highest/Blocker/Critical → Critical, High/Major → High, Medium (or none) → Medium, Low/Lowest/Minor/Trivial → Low; others → Medium with a warning |
+| Status | Done category → Done; else the blocked label or a status named `Blocked` → Blocked; else In Progress / To Do by status category |
+| Team/Module, Assignee | First component, assignee display name |
+| Due date | Due date (Start date is not read, because its field id differs per site) |
+| Milestone + date | Fix version with the earliest release date |
+| Dependencies | "is blocked by" links. Blockers in the same project become dependency records; all blocker keys are kept as blocker text |
+
+Descriptions are not imported. Issues deleted in Jira stay in DeliveryPulse with a `TASK_NOT_IN_UPLOAD` warning, as with uploads. If a Jira project has the same name as an uploaded project, the sync updates that project.
+
+### Demo data in your own Jira
+
+[`scripts/jira-demo.mjs`](scripts/jira-demo.mjs) builds a fictional five-project portfolio (34 issues) in your Jira site through the REST API. The data is in [`scripts/jira-demo-data.mjs`](scripts/jira-demo-data.mjs), and dates are relative to the day you run it, so the demo never goes stale. Between them, the projects trigger every rule:
+
+| Project | Story | Shows |
+| --- | --- | --- |
+| `PAY` Payments Revamp | Launch in 10 days is in trouble | Blocked Critical task that recurs, overdue task, Critical/High bugs, dependency on a blocked and an overdue task, task due after the milestone, a completed Pilot release |
+| `MOB` Mobile App 3.0 | Beta date has passed | Missed milestone, overdue Critical bug (fixed in week 3), overdue story, GA at risk (Medium) once Offline mode is blocked |
+| `DATA` Data Platform | Healthy | Completed Q3 release, on-track Q4 release, a Low bug that closes |
+| `CRMX` CRM Migration | Messy data | Missing due dates and assignees, a release without a date ("No Date"), a link to an issue in another project |
+| `OPS` Ops & Infra | Dependency chain | Prerequisite overdue (High) or incomplete (Medium), recurring Critical blocker, a new Critical bug in week 3, task due after the milestone |
+
+Set `JIRA_PROJECT_KEYS=PAY,MOB,DATA,CRMX,OPS`, then run it one week at a time and sync after each:
+
+```powershell
+node scripts/jira-demo.mjs week1   # 5 projects with releases, components and 31 issues
+# Sync now in DeliveryPulse
+node scripts/jira-demo.mjs week2   # PAY-1 and OPS-4 unblocked, work finished, bugs PAY-8 and MOB-7 added
+# Sync now
+node scripts/jira-demo.mjs week3   # PAY-1 and OPS-4 blocked again, MOB-2 fixed, bug OPS-7 added
+# Sync now, then Analyze all projects
+```
+
+It reads the same `.env`, needs Node 22 (already required by the frontend), and only touches these five projects. Reruns are safe: existing demo issues are found by their `dp-<ref>` label. If your site cannot create projects through the API, create company-managed Kanban software projects with those keys and names yourself and run `week1` again. If a field such as priority is hidden on a project's create screen, the script creates the issue without it and says so.
+
+Use only fictional data in a personal Jira site. Don't copy real company projects there without permission.
+
+### Tests
+
+The client is tested against a mocked HTTP server (paging, Basic auth, query, error handling, key validation), the field mapping against a recorded-style search response, and the sync end to end through the Spring context with only the Jira HTTP call mocked. The seeding script and the sync have not yet been run against a live Jira site.

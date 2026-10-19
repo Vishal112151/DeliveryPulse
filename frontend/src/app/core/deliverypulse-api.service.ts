@@ -5,6 +5,7 @@ import { API_BASE_URL } from './api.config';
 import {
   AiStatusResponse,
   ImportSummary,
+  JiraStatusResponse,
   PortfolioRiskSummary,
   ProjectInsightsResponse,
   ProjectResponse,
@@ -74,6 +75,15 @@ export class DeliveryPulseApi {
 
   generatePortfolioInsights(): Observable<ProjectInsightsResponse> {
     return this.http.post<ProjectInsightsResponse>(`${this.baseUrl}/portfolio/insights`, null);
+  }
+
+  getJiraStatus(): Observable<JiraStatusResponse> {
+    return this.http.get<JiraStatusResponse>(`${this.baseUrl}/integrations/jira/status`);
+  }
+
+  /** Imports the configured Jira projects as an update; the response has the same shape as an upload. */
+  syncJira(): Observable<ImportSummary> {
+    return this.http.post<ImportSummary>(`${this.baseUrl}/integrations/jira/sync`, null);
   }
 
   /** With updateExisting, projects that already exist are updated by Task ID instead of rejected. */
