@@ -7,7 +7,11 @@ export type RiskCategory =
   | 'CRITICAL_TASK_AT_RISK'
   | 'DEPENDENCY_RISK'
   | 'DELIVERY_RISK'
-  | 'DATA_QUALITY_WARNING';
+  | 'DATA_QUALITY_WARNING'
+  | 'DEFECT_RISK'
+  | 'RECURRING_BLOCKER';
+export type IssueType = 'TASK' | 'DEFECT';
+export type MilestoneStatus = 'COMPLETE' | 'MISSED' | 'AT_RISK' | 'ON_TRACK' | 'NO_DATE';
 export type RiskCertainty = 'CONFIRMED' | 'POTENTIAL' | 'DATA_QUALITY';
 export type RiskStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
 export type TaskSortField = 'TASK_ID' | 'TASK_NAME' | 'STATUS' | 'PRIORITY' | 'ASSIGNEE' | 'DUE_DATE';
@@ -28,6 +32,7 @@ export interface ProjectResponse {
   overdueTaskCount: number;
   blockedTaskCount: number;
   risksBySeverity: Record<RiskSeverity, number>;
+  openDefectCount: number;
 }
 
 export interface TaskResponse {
@@ -44,6 +49,9 @@ export interface TaskResponse {
   overdue: boolean;
   blockerText: string | null;
   description: string | null;
+  issueType: IssueType;
+  milestone: string | null;
+  milestoneDate: string | null;
 }
 
 export interface TaskPageResponse {
@@ -86,6 +94,18 @@ export interface ProjectRiskSummary {
   risksBySeverity: Record<RiskSeverity, number>;
   risksByCategory: Record<RiskCategory, number>;
   risks: RiskResponse[];
+  openDefectCount: number;
+  milestones: MilestoneSummary[];
+}
+
+export interface MilestoneSummary {
+  name: string;
+  milestoneDate: string | null;
+  taskCount: number;
+  completedTaskCount: number;
+  blockedTaskCount: number;
+  openDefectCount: number;
+  status: MilestoneStatus;
 }
 
 export interface PortfolioRiskSummary {
@@ -101,11 +121,24 @@ export interface PortfolioRiskSummary {
   risksBySeverity: Record<RiskSeverity, number>;
   risksByCategory: Record<RiskCategory, number>;
   projects: ProjectRiskSummary[];
+  openDefectCount: number;
+}
+
+/** Task status changes recorded by imports during the report week. */
+export interface WeeklyActivity {
+  tasksAdded: number;
+  tasksCompleted: number;
+  tasksBlocked: number;
+  tasksUnblocked: number;
+  defectsOpened: number;
+  defectsClosed: number;
 }
 
 export interface WeeklyReportResponse extends PortfolioRiskSummary {
   weekStartDate: string;
   weekEndDate: string;
+  activity: WeeklyActivity;
+  activityByProject: Record<string, WeeklyActivity>;
 }
 
 export interface ImportIssue {

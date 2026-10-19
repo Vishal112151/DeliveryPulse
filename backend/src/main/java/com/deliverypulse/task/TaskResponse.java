@@ -3,6 +3,7 @@ package com.deliverypulse.task;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import com.deliverypulse.shared.domain.IssueType;
 import com.deliverypulse.shared.domain.Priority;
 import com.deliverypulse.shared.domain.TaskStatus;
 
@@ -19,5 +20,8 @@ public record TaskResponse(
         LocalDate dueDate,
         boolean overdue,
         String blockerText,
-        String description) {
+        String description,
+        IssueType issueType,
+        String milestone,
+        LocalDate milestoneDate) {
 }

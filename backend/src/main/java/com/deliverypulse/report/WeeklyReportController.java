@@ -18,7 +18,7 @@ public class WeeklyReportController {
 
     @GetMapping("/api/reports/weekly")
     @Operation(summary = "Get the weekly portfolio status snapshot",
-            description = "Returns current project/task/risk totals for the seven-day reporting window. No historical trend is inferred.")
+            description = "Returns current project/task/risk totals, plus the task status changes that imports recorded during the seven-day reporting window.")
     public WeeklyReportResponse getWeeklyReport() {
         return weeklyReportService.getWeeklyReport();
     }

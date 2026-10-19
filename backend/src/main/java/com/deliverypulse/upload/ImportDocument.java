@@ -44,7 +44,10 @@ record ImportedTask(
         java.time.LocalDate startDate,
         java.time.LocalDate dueDate,
         String blockerText,
-        String description) {
+        String description,
+        com.deliverypulse.shared.domain.IssueType issueType,
+        String milestone,
+        java.time.LocalDate milestoneDate) {
 }
 
 record ImportedDependency(String dependentTaskKey, String prerequisiteTaskKey, String sourceText) {

@@ -37,6 +37,7 @@ import { errorMessage } from '../shared/view-helpers';
         </div>
         @if (validationError()) { <div class="inline-error" role="alert"><lucide-icon [img]="AlertIcon" [size]="15" />{{ validationError() }}</div> }
         @if (uploadError()) { <div class="inline-error api-error" role="alert"><lucide-icon [img]="AlertIcon" [size]="15" />{{ uploadError() }}</div> }
+        <label class="update-option"><input type="checkbox" [checked]="updateExisting()" (change)="updateExisting.set($any($event.target).checked)" /><span><strong>Update existing projects</strong> Match tasks by Task ID, add new ones and record status changes. Needed for weekly activity and recurring-blocker detection.</span></label>
         <div class="upload-actions"><span class="privacy-note">Files are validated before any records are committed.</span><button class="button button-primary" type="button" (click)="upload()" [disabled]="!selectedFile() || uploading()">
           @if (uploading()) { <span class="spinner"></span> Importing… } @else { <lucide-icon [img]="UploadIcon" [size]="15" /> Import file }
         </button></div>
@@ -46,6 +47,7 @@ import { errorMessage } from '../shared/view-helpers';
         <section class="surface result-surface" aria-live="polite">
           <div class="result-heading"><div class="success-mark" [class.rejected]="result.errors.length > 0"><lucide-icon [img]="result.errors.length > 0 ? AlertIcon : CheckIcon" [size]="17" /></div><div><div class="eyebrow">{{ result.errors.length > 0 ? 'IMPORT REJECTED' : 'IMPORT COMPLETE' }}</div><h2>{{ result.errors.length > 0 ? 'Validation summary' : 'Import summary' }}</h2></div></div>
           <div class="result-metrics"><div><strong>{{ result.projectCount }}</strong><span>projects</span></div><div><strong>{{ result.importedTaskCount }}</strong><span>tasks</span></div><div><strong>{{ result.skippedWorksheets.length }}</strong><span>skipped sheets</span></div></div>
+          @if (result.importedProjects.length && updatedImport()) { <div class="notice-line" role="status">Projects were updated. Run analysis on them to refresh their risks.</div> }
           @if (result.importedProjects.length) { <div class="result-section"><h3>Imported projects</h3><div class="chip-list">@for (project of result.importedProjects; track project) { <span class="name-chip">{{ project }}</span> }</div></div> }
           @if (result.skippedWorksheets.length) { <div class="result-section"><h3>Skipped worksheets</h3><div class="chip-list">@for (sheet of result.skippedWorksheets; track sheet) { <span class="muted-chip">{{ sheet }}</span> }</div></div> }
           @if (result.warnings.length) { <div class="issue-list warning-list"><h3>Warnings · {{ result.warnings.length }}</h3>@for (issue of result.warnings; track $index) { <p><strong>{{ issue.worksheet }}{{ issue.row ? ' · row ' + issue.row : '' }}</strong> {{ issue.message }}</p> }</div> }
@@ -63,6 +65,7 @@ import { errorMessage } from '../shared/view-helpers';
     .selected-file { display:flex; width:min(440px,90%); align-items:center; gap:12px; padding:12px; border:1px solid #e5e9e3; border-radius:6px; background:#fff; }.file-icon { flex:none; width:36px; height:36px; border-radius:6px; }.selected-meta { display:grid; min-width:0; gap:4px; flex:1; }.selected-meta strong { overflow:hidden; color:#33443a; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }.selected-meta span { color:#89938c; font-size:10px; }.upload-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; }.privacy-note { color:#89938c; font-size:9px; }.inline-error { display:flex; gap:7px; align-items:flex-start; margin-top:12px; color:#ad5142; font-size:10px; }.api-error { padding:10px; border-radius:5px; background:#fff4f0; }
     .success-mark { display:grid; width:34px; height:34px; place-items:center; border-radius:50%; color:#4b7944; background:#edf5e8; }.success-mark.rejected { color:#b34f40; background:#faeae6; }.result-heading { justify-content:flex-start; }.result-metrics { display:grid; grid-template-columns:repeat(3,1fr); margin:20px 0 16px; padding:13px 0; border-block:1px solid #edf0ec; }.result-metrics div { display:grid; gap:4px; }.result-metrics strong { color:#304137; font-size:22px; }.result-metrics span { color:#8a948c; font-size:9px; }.result-section { padding:10px 0; border-bottom:1px solid #edf0ec; }.result-section h3,.issue-list h3 { margin:0 0 9px; color:#53645a; font-size:10px; }.chip-list { display:flex; flex-wrap:wrap; gap:6px; }.name-chip,.muted-chip { padding:5px 7px; border-radius:4px; color:#52704a; background:#eff5e9; font-size:9px; }.muted-chip { color:#77827a; background:#f0f2ef; }.issue-list { margin-top:14px; }.issue-list p { margin:7px 0 0; color:#7b766b; font-size:10px; line-height:1.45; }.issue-list p strong { color:#7a6240; }.error-list p strong { color:#aa5545; }.warning-list h3 { color:#98713c; }.error-list h3 { color:#ad5142; }
     .format-strip { display:grid; grid-template-columns:38px minmax(0,1fr) 38px minmax(0,1fr); align-items:center; gap:12px; margin-top:15px; padding:14px 17px; border:1px solid #e5e9e3; border-radius:7px; background:#fff; }.format-icon { display:grid; width:34px; height:34px; place-items:center; border-radius:6px; }.format-icon.excel { color:#46754a; background:#eef4e9; }.format-icon.csv { color:#90733a; background:#f6f1df; }.format-strip strong,.format-strip span { display:block; }.format-strip strong { margin-bottom:4px; color:#405047; font-size:10px; }.format-strip span { color:#89938c; font-size:9px; line-height:1.45; }
+    .update-option { display:flex; gap:9px; align-items:flex-start; margin-top:14px; color:#77827a; font-size:10px; line-height:1.45; cursor:pointer; }.update-option input { margin-top:2px; accent-color:#6d8a58; }.update-option strong { display:block; color:#3c5146; font-size:11px; }.notice-line { margin-bottom:6px; padding:9px 10px; border-radius:5px; color:#526f49; background:#f6faef; font-size:10px; }
     .spinner { width:13px; height:13px; border:2px solid #dce5d8; border-top-color:#6d8a58; border-radius:50%; animation:spin .7s linear infinite; }@keyframes spin { to { transform:rotate(360deg); } }
     @media(max-width:900px){.upload-layout{grid-template-columns:1fr;}}@media(max-width:600px){.upload-surface,.result-surface{padding:15px;}.dropzone{min-height:235px;}.upload-actions{align-items:flex-start;flex-direction:column;}.format-strip{grid-template-columns:34px minmax(0,1fr);}.format-icon.csv{grid-column:1;}.format-strip>div:nth-of-type(4){grid-column:2;}}
   `],
@@ -77,6 +80,9 @@ export class UploadPage {
   readonly validationError = signal('');
   readonly uploadError = signal('');
   readonly summary = signal<ImportSummary | null>(null);
+  readonly updateExisting = signal(false);
+  /** Whether the shown summary came from an update upload. */
+  readonly updatedImport = signal(false);
   protected readonly UploadIcon = Upload;
   protected readonly ExcelIcon = FileSpreadsheet;
   protected readonly CsvIcon = FileText;
@@ -101,14 +107,15 @@ export class UploadPage {
     const file = this.selectedFile();
     if (!file || this.uploading()) return;
     this.uploading.set(true); this.uploadError.set(''); this.summary.set(null);
-    this.api.upload(file).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.updatedImport.set(this.updateExisting());
+    this.api.upload(file, this.updateExisting()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (result) => { this.summary.set(result); this.uploading.set(false); },
       error: (error: unknown) => {
         if (error instanceof HttpErrorResponse && (error.status === 422 || error.status === 409)
             && this.isImportSummary(error.error)) {
           this.summary.set(error.error);
           this.uploadError.set(error.status === 409
-            ? 'No records were imported because one or more project names already exist.'
+            ? 'No records were imported because one or more project names already exist. Tick "Update existing projects" to update them.'
             : 'No records were imported. Correct the listed validation issues and upload again.');
         } else {
           this.uploadError.set(errorMessage(error));

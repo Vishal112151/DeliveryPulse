@@ -24,7 +24,7 @@ public class UploadService {
         this.persistenceService = persistenceService;
     }
 
-    public ImportSummary importExcel(MultipartFile file) {
+    public ImportSummary importExcel(MultipartFile file, boolean updateExisting) {
         String fileName = validateUpload(file);
         String extension = extension(fileName);
         if (!extension.equals("xlsx") && !extension.equals("xls")) {
@@ -33,13 +33,13 @@ public class UploadService {
         }
         try (InputStream input = file.getInputStream()) {
             ImportDocument document = parser.parseExcel(input, fileName);
-            return persistAndLog(fileName, extension, document);
+            return persistAndLog(fileName, extension, document, updateExisting);
         } catch (IOException exception) {
             throw new UploadRejectedException("The Excel upload could not be read.");
         }
     }
 
-    public ImportSummary importCsv(MultipartFile file) {
+    public ImportSummary importCsv(MultipartFile file, boolean updateExisting) {
         String fileName = validateUpload(file);
         if (!extension(fileName).equals("csv")) {
             throw new UploadRejectedException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
@@ -47,7 +47,7 @@ public class UploadService {
         }
         try (InputStream input = file.getInputStream()) {
             ImportDocument document = parser.parseCsv(input, fileName);
-            return persistAndLog(fileName, "csv", document);
+            return persistAndLog(fileName, "csv", document, updateExisting);
         } catch (IOException exception) {
             throw new UploadRejectedException("The CSV upload could not be read.");
         }
@@ -72,8 +72,9 @@ public class UploadService {
         return fileName;
     }
 
-    private ImportSummary persistAndLog(String fileName, String fileType, ImportDocument document) {
-        ImportSummary summary = persistenceService.persist(fileName, fileType, document);
+    private ImportSummary persistAndLog(String fileName, String fileType, ImportDocument document,
+            boolean updateExisting) {
+        ImportSummary summary = persistenceService.persist(fileName, fileType, document, updateExisting);
         if (summary.hasErrors()) {
             logger.warn("Project data import rejected: type={}, errors={}, warnings={}",
                     fileType, summary.errors().size(), summary.warnings().size());

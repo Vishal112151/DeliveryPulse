@@ -20,7 +20,8 @@ public record PortfolioRiskSummary(
         int activeRiskCount,
         Map<RiskSeverity, Long> risksBySeverity,
         Map<RiskCategory, Long> risksByCategory,
-        List<ProjectRiskSummary> projects) {
+        List<ProjectRiskSummary> projects,
+        int openDefectCount) {
 
     public PortfolioRiskSummary {
         risksBySeverity = Map.copyOf(risksBySeverity);

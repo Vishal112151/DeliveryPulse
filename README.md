@@ -160,10 +160,12 @@ curl.exe -X POST http://localhost:8080/api/uploads/excel -F "file=@$env:USERPROF
 
 - One worksheet per project; the worksheet name becomes the project name. Sheets named `Read Me`, `Instructions`, `How To`, `Guide` or `About` are skipped, and so are hidden worksheets (for example dropdown-list helper sheets), with a warning. Sheet names are trimmed.
 - A CSV upload is one project named after the file (for example `Payments.csv` → `Payments`).
-- Columns (matching is case/space/punctuation-insensitive): **Task ID**, **Task Name**, **Priority**, **Status** (required); Team/Module, Assignee, Start Date, Due Date, Blocker / Dependency, Description (optional). Unknown columns are ignored with a warning.
+- Columns (matching is case/space/punctuation-insensitive): **Task ID**, **Task Name**, **Priority**, **Status** (required); Team/Module, Assignee, Start Date, Due Date, Blocker / Dependency, Description, Type, Milestone, Milestone Date (optional). Unknown columns are ignored with a warning.
 - Priority: Low, Medium, High, Critical. Status: Not Started, In Progress, Blocked, Done (also Todo, Active, On Hold, Completed, …).
 - Formula cells use the value Excel saved with the file (the formula is not recalculated).
 - Dates: Excel date cells, or text in `yyyy-MM-dd`, `M/d/yyyy`, `M/d/yy`, `d-MMM-yyyy`, `yyyy/M/d`.
+- `Type`: Task, Story, Feature, Subtask or Epic (all stored as Task), or Bug/Defect (stored as Defect). Blank means Task. Also read from `Issue Type`.
+- `Milestone` (also `Release`, `Fix Version`) and `Milestone Date` (also `Release Date`, `Target Date`): group tasks into milestones. Give the date on at least one row of a milestone and every row of that milestone gets it; two different dates for one milestone, or a date without a milestone name, is a validation error.
 - `Blocker / Dependency`: task IDs from the same project, separated by semicolons, commas or line breaks, become dependency records (a repeated ID creates one record); any other text is kept as descriptive blocker text.
 
 ### Upload outcomes
@@ -173,11 +175,16 @@ curl.exe -X POST http://localhost:8080/api/uploads/excel -F "file=@$env:USERPROF
 | Valid file | `201` | Import summary: projects, tasks, skipped sheets, warnings |
 | Row/column validation errors | `422` | Every error with worksheet, row, column and message; **nothing is imported** |
 | Project name already exists (e.g. same workbook uploaded twice) | `409` | "No records were imported because one or more project names already exist." Nothing is imported or duplicated |
+| Project name already exists, uploaded with **Update existing projects** (`update=true`) | `201` | Tasks are updated by Task ID, new tasks are added, and each status change is recorded. Tasks missing from the file are left unchanged, with a `TASK_NOT_IN_UPLOAD` warning |
 | Corrupt/non-Excel content | `400` | "The Excel file is malformed or uses an unsupported workbook format." |
 | Wrong file extension | `415` | Supported-type message |
 | Larger than 10 MB | `413` | Size-limit message |
 
-Uploads are atomic: one bad row rejects the whole file. Project names are unique case-insensitively (enforced by a database index). There is currently no API to delete or re-import a project; to reload the demo data, reset the database (section 2).
+Uploads are atomic: one bad row rejects the whole file. Project names are unique case-insensitively (enforced by a database index). There is no API to delete a project; to reload the demo data from scratch, reset the database (section 2).
+
+### Status history
+
+Every import records the status each task enters (`task_status_history`): the first time a task appears, and every time a later update upload changes its status. Upload the latest export with **Update existing projects** regularly (for example weekly). The recurring-blocker rule and the weekly report's activity section are built from this history. A change is timestamped when it is uploaded, so changes that happened and reverted between two uploads are not seen. On upgrade, existing tasks get one history row each with their current status.
 
 ---
 
@@ -185,15 +192,15 @@ Uploads are atomic: one bad row rejects the whole file. Project names are unique
 
 | Method & path | Purpose |
 | --- | --- |
-| `POST /api/uploads/excel` | Import `.xlsx`/`.xls` (multipart field `file`) |
-| `POST /api/uploads/csv` | Import one `.csv` project |
+| `POST /api/uploads/excel?update=false` | Import `.xlsx`/`.xls` (multipart field `file`); `update=true` updates projects that already exist |
+| `POST /api/uploads/csv?update=false` | Import one `.csv` project; `update=true` as above |
 | `GET /api/projects` | Projects with task metrics and risk counts by severity (sorted by name) |
 | `GET /api/projects/{id}` | One project's metrics |
 | `GET /api/projects/{id}/tasks` | Paged tasks; filters `status`, `priority`, `assignee`, `overdue`, `analysisDate` (defaults to the project's last analysis date, or today if never analyzed); `page`, `size` (1–100), `sortBy`, `sortDirection` |
 | `POST /api/projects/{id}/analyze?analysisDate=yyyy-MM-dd` | Run the risk rules (date optional; defaults to today in `APP_TIME_ZONE`) |
 | `GET /api/projects/{id}/risks` | Latest active findings with evidence and supporting task IDs, most severe first |
 | `GET /api/dashboard/portfolio` | Portfolio totals and per-project summaries |
-| `GET /api/reports/weekly` | Seven-day window ending today plus the current snapshot |
+| `GET /api/reports/weekly` | Seven-day window ending today: the current snapshot plus `activity` and `activityByProject` (tasks added, completed, newly blocked, unblocked, defects opened and closed, from the status history) |
 | `GET /api/ai/status` | Whether AI insights are enabled, configured and authorized (never returns the key) |
 | `POST /api/projects/{id}/insights` | Executive summary, top-risk explanations, actions and a weekly status draft — AI-generated when available, deterministic otherwise (section 12) |
 | `POST /api/portfolio/insights` | The same four sections across all projects (`projectId` is `null`, `projectName` is `All projects`) |
@@ -222,8 +229,12 @@ Analysis is deterministic and evidence-based. Every finding has a severity, a ce
 | Open dependency on an incomplete prerequisite | Medium | Potential |
 | Open dependency on an overdue or blocked prerequisite | High | Potential |
 | Missing due date/assignee, start after due, unresolved task-ID reference | Low | Data quality |
+| Milestone date has passed and some of its tasks are not Done (`DELIVERY_RISK`) | Critical | Confirmed |
+| Upcoming milestone has blocked or overdue tasks, or tasks due after the milestone date (`DELIVERY_RISK`) | High within 14 days, else Medium | Potential |
+| Open Critical/High priority defect (`DEFECT_RISK`) | Same as priority | Confirmed |
+| Task (not Done) has entered Blocked 2+ times in its status history (`RECURRING_BLOCKER`) | High; Critical at 3+ | Confirmed |
 
-"Overdue" means due **strictly before** the analysis date and not Done. A task due on the analysis date is not overdue. Re-running analysis updates existing findings (by stable fingerprint) instead of duplicating them, resolves findings whose condition no longer holds, and reopens findings when the condition returns. There is no milestone/release field, so the engine does not predict project-level deadline misses.
+"Overdue" means due **strictly before** the analysis date and not Done. A task due on the analysis date is not overdue. Re-running analysis updates existing findings (by stable fingerprint) instead of duplicating them, resolves findings whose condition no longer holds, and reopens findings when the condition returns. Milestone checks need a `Milestone Date`; milestones without one are listed on the project page as "No Date" but produce no finding. The project risk response also lists each milestone's progress and status (`COMPLETE`, `MISSED`, `AT_RISK`, `ON_TRACK`, `NO_DATE`) and the open defect count.
 
 Risk counts are counts of **findings**, not of tasks, and there is no weighted score. One task can produce several findings: for example EC-102 (Critical, Blocked, overdue) produces an overdue, a blocked and a critical-at-risk finding. Findings are listed most severe first.
 
@@ -260,7 +271,7 @@ The numbers in steps 6–7 assume the demo runs on 2026-10-15. On a different da
 | UI shows "Cannot reach the DeliveryPulse API" | Backend not running, or the dev server was started without the proxy. Use `npm start`, which applies `proxy.conf.mjs`. |
 | Uploads or "Run analysis" return 403, but pages load | CORS rejected a request that was not proxied. Use the dev proxy (`npm start`), or set `FRONTEND_ORIGIN` to the exact scheme://host:port the browser uses and restart the backend. |
 | Dev server on 4200 stops responding | Stop it (Ctrl+C) and run `npm start` again. To use another port: `npx ng serve --port 4300`. |
-| Upload returns 409 | Those project names already exist. Reset the database to re-import. |
+| Upload returns 409 | Those project names already exist. Tick **Update existing projects** (or pass `update=true`) to update them, or reset the database to start over. |
 | Overdue counts look off by one day | Set `APP_TIME_ZONE` to your local zone, or pass `analysisDate` explicitly. |
 
 ---
@@ -268,11 +279,11 @@ The numbers in steps 6–7 assume the demo runs on 2026-10-15. On a different da
 ## 11. Known limitations
 
 - No authentication or authorization.
-- No project delete/re-import API; resetting the database is the only way to reload the same project names.
+- No project delete API; resetting the database is the only way to remove a project. Update uploads never remove tasks that are missing from the file.
 - No import-history endpoint (import runs are recorded in `import_runs` but not exposed); no dependency-graph endpoint (project detail shows the original blocker text and the risk supporting task IDs).
 - Each project's metrics and risks are as of its own last analysis date. The portfolio, dashboard and weekly report add those up while labelling the snapshot with today's date, so a project analyzed days ago contributes its older numbers. Re-run analysis on each project for a same-day picture.
 - `import_runs` records only successful imports; rejected uploads are logged but not stored.
-- The weekly report is a current snapshot over a seven-day window, not a historical trend, because task-status history is not stored.
+- The weekly report's activity counts only what update uploads recorded. Without regular update uploads it shows tasks as added on their first import and nothing else. Status history covers status only, not due dates, priorities or blocker text.
 - Backend automated tests run on H2. PostgreSQL behaviour was verified manually (section 5).
 - AI insights are generated on demand and not stored; each click is a new provider call.
 

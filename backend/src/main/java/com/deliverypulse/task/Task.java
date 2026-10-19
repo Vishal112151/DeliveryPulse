@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.deliverypulse.project.Project;
+import com.deliverypulse.shared.domain.IssueType;
 import com.deliverypulse.shared.domain.Priority;
 import com.deliverypulse.shared.domain.TaskStatus;
 
@@ -81,6 +82,18 @@ public class Task {
     @Column(columnDefinition = "text")
     private String description;
 
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "issue_type", nullable = false, length = 20)
+    private IssueType issueType = IssueType.TASK;
+
+    @Size(max = 160)
+    @Column(length = 160)
+    private String milestone;
+
+    @Column(name = "milestone_date")
+    private LocalDate milestoneDate;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -111,6 +124,35 @@ public class Task {
         this.dueDate = dueDate;
         this.blockerText = blockerText;
         this.description = description;
+    }
+
+    public Task(Project project, String taskKey, String taskName, String teamOrModule, String assignee,
+            Priority priority, TaskStatus status, LocalDate startDate, LocalDate dueDate,
+            String blockerText, String description, IssueType issueType, String milestone,
+            LocalDate milestoneDate) {
+        this(project, taskKey, taskName, teamOrModule, assignee, priority, status, startDate, dueDate,
+                blockerText, description);
+        this.issueType = issueType == null ? IssueType.TASK : issueType;
+        this.milestone = milestone;
+        this.milestoneDate = milestoneDate;
+    }
+
+    /** Overwrites every imported field; the task key and project stay the same. */
+    public void applyImport(String taskName, String teamOrModule, String assignee, Priority priority,
+            TaskStatus status, LocalDate startDate, LocalDate dueDate, String blockerText, String description,
+            IssueType issueType, String milestone, LocalDate milestoneDate) {
+        this.taskName = taskName;
+        this.teamOrModule = teamOrModule;
+        this.assignee = assignee;
+        this.priority = priority;
+        this.status = status;
+        this.startDate = startDate;
+        this.dueDate = dueDate;
+        this.blockerText = blockerText;
+        this.description = description;
+        this.issueType = issueType == null ? IssueType.TASK : issueType;
+        this.milestone = milestone;
+        this.milestoneDate = milestoneDate;
     }
 
     public UUID getId() {
@@ -159,6 +201,22 @@ public class Task {
 
     public String getDescription() {
         return description;
+    }
+
+    public IssueType getIssueType() {
+        return issueType;
+    }
+
+    public boolean isDefect() {
+        return issueType == IssueType.DEFECT;
+    }
+
+    public String getMilestone() {
+        return milestone;
+    }
+
+    public LocalDate getMilestoneDate() {
+        return milestoneDate;
     }
 
     public Instant getCreatedAt() {

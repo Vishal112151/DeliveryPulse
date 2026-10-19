@@ -70,4 +70,12 @@ describe('DeliveryPulseApi', () => {
     expect(uploadedFile.size).toBe(file.size);
     request.flush({ projectCount: 1, importedTaskCount: 0 } satisfies Partial<ImportSummary>);
   });
+
+  it('asks the API to update existing projects only when requested', () => {
+    const file = new File(['Task ID,Task Name'], 'Ops.xlsx');
+    api.upload(file, true).subscribe();
+    const request = http.expectOne((req) => req.url === '/api/uploads/excel');
+    expect(request.request.params.get('update')).toBe('true');
+    request.flush({} satisfies Partial<ImportSummary>);
+  });
 });
