@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { signInAs } from '../core/testing';
 import { AiStatusResponse, ProjectInsightsResponse } from '../core/api.models';
 import { AiInsightsPanelComponent } from './ai-insights-panel.component';
 
@@ -25,6 +26,7 @@ describe('AiInsightsPanelComponent', () => {
 
   function render(status: Partial<AiStatusResponse>) {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    signInAs('ADMIN');
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(AiInsightsPanelComponent);
     fixture.componentRef.setInput('projectId', 'p-1');
@@ -38,6 +40,7 @@ describe('AiInsightsPanelComponent', () => {
 
   it('in portfolio mode requests the cross-project briefing and labels it per project', () => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    signInAs('ADMIN');
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(AiInsightsPanelComponent);
     fixture.detectChanges();

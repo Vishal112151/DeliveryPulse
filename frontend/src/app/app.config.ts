@@ -1,5 +1,5 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import {
   LucideActivity as Activity,
@@ -24,12 +24,13 @@ import {
   provideLucideIcons,
 } from '@lucide/angular';
 import { routes } from './app.routes';
+import { authInterceptor } from './core/auth.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([authInterceptor])),
     provideLucideIcons(Activity, AlertCircle, ArrowLeft, ArrowUpDown, ArrowUpRight,
       Check, Clock3, Download, FileSpreadsheet, FileText, FolderKanban, LayoutDashboard,
       Menu, Printer, RefreshCw, Search, TriangleAlert, Upload, X),

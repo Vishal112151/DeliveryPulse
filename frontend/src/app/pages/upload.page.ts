@@ -12,13 +12,15 @@ import {
 } from '@lucide/angular';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ImportSummary, JiraStatusResponse } from '../core/api.models';
+import { AuthService } from '../core/auth.service';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { LucideIconCompatComponent } from '../shared/lucide-icon-compat.component';
+import { AutomationPanelComponent } from '../shared/automation-panel.component';
 import { errorMessage } from '../shared/view-helpers';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, LucideIconCompatComponent],
+  imports: [CommonModule, LucideIconCompatComponent, AutomationPanelComponent],
   template: `
     <section class="page-heading"><div><div class="eyebrow">DATA INTAKE</div><h1>Upload project data</h1><p class="heading-copy">Import a multi-project workbook or a single-project CSV into the portfolio.</p></div></section>
     <div class="upload-layout">
@@ -44,7 +46,7 @@ import { errorMessage } from '../shared/view-helpers';
         </button></div>
       </section>
 
-      @if (jira()?.configured) {
+      @if (jira()?.configured && auth.isAdmin()) {
         <section class="surface jira-surface">
           <div class="surface-heading"><div><div class="eyebrow">JIRA CLOUD</div><h2>Sync from Jira</h2></div><span class="limit-badge">READ ONLY</span></div>
           <p class="jira-copy">Imports {{ jira()!.projectKeys.join(', ') }} from {{ jira()!.baseUrl }} as an update: issues are matched by key and status changes are recorded. Nothing is written to Jira.</p>
@@ -66,6 +68,7 @@ import { errorMessage } from '../shared/view-helpers';
         </section>
       }
     </div>
+    <app-automation-panel />
     <section class="format-strip"><div class="format-icon excel"><lucide-icon [img]="ExcelIcon" [size]="18" /></div><div><strong>Excel workbook</strong><span>Every relevant worksheet becomes a separate project. Instruction sheets are skipped.</span></div><div class="format-icon csv"><lucide-icon [img]="CsvIcon" [size]="18" /></div><div><strong>CSV file</strong><span>One project per file. The project name comes from the filename.</span></div></section>
   `,
   styles: [`
@@ -82,6 +85,7 @@ import { errorMessage } from '../shared/view-helpers';
   `],
 })
 export class UploadPage {
+  protected readonly auth = inject(AuthService);
   private readonly api = inject(DeliveryPulseApi);
   private readonly destroyRef = inject(DestroyRef);
   @ViewChild('fileInput') private fileInput?: ElementRef<HTMLInputElement>;

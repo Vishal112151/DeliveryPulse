@@ -74,7 +74,7 @@ class RiskAnalysisServiceTests {
         service = new RiskAnalysisService(projectRepository, taskRepository, dependencyRepository,
                 riskRepository, statusChangeRepository, List.of(new OverdueTaskRule(), new BlockedTaskRule(),
                         new CriticalTaskAtRiskRule(), new DependencyRiskRule(), new DataQualityRule()),
-                Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
+                new com.deliverypulse.auth.ProjectAccess(null), Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
     }
 
     @Test

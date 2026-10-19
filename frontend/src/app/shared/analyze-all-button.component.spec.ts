@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { signInAs } from '../core/testing';
 import { AnalyzeAllButtonComponent } from './analyze-all-button.component';
 
 describe('AnalyzeAllButtonComponent', () => {
@@ -8,6 +9,7 @@ describe('AnalyzeAllButtonComponent', () => {
 
   function render(projectIds: string[]) {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    signInAs('ADMIN');
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(AnalyzeAllButtonComponent);
     fixture.componentRef.setInput('projectIds', projectIds);

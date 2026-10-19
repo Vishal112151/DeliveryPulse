@@ -77,6 +77,7 @@ class AiInsightsControllerTests {
     @Nested
     @SpringBootTest
     @AutoConfigureMockMvc
+    @org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
     @ActiveProfiles("test")
     @Transactional
     class WithDefaultConfiguration extends Fixture {
@@ -130,6 +131,7 @@ class AiInsightsControllerTests {
     @Nested
     @SpringBootTest
     @AutoConfigureMockMvc
+    @org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
     @ActiveProfiles("test")
     @Transactional
     @TestPropertySource(properties = {

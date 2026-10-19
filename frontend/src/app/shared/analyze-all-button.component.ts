@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LucideRefreshCw as RefreshCw } from '@lucide/angular';
+import { AuthService } from '../core/auth.service';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { LucideIconCompatComponent } from './lucide-icon-compat.component';
 import { errorMessage } from './view-helpers';
@@ -10,6 +11,7 @@ import { errorMessage } from './view-helpers';
   selector: 'app-analyze-all-button',
   imports: [LucideIconCompatComponent],
   template: `
+    @if (auth.canEdit()) {
     <button class="analyze-all" type="button" (click)="run()" [disabled]="running() || !projectIds().length">
       @if (running()) {
         <span class="spinner" aria-hidden="true"></span> Analyzing {{ done() }} of {{ projectIds().length }}…
@@ -18,6 +20,7 @@ import { errorMessage } from './view-helpers';
       }
     </button>
     @if (error()) { <span class="analyze-error" role="alert">{{ error() }}</span> }
+    }
   `,
   styles: [`
     :host { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -37,6 +40,7 @@ export class AnalyzeAllButtonComponent {
   readonly done = signal(0);
   readonly error = signal('');
   protected readonly RefreshIcon = RefreshCw;
+  protected readonly auth = inject(AuthService);
   private readonly api = inject(DeliveryPulseApi);
   private readonly destroyRef = inject(DestroyRef);
 

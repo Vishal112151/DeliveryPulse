@@ -3,6 +3,7 @@ import { Component, DestroyRef, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LucideFileText as FileText, LucideRefreshCw as RefreshCw, LucideTriangleAlert as TriangleAlert } from '@lucide/angular';
 import { AiStatusResponse, InsightStatement, ProjectInsightsResponse } from '../core/api.models';
+import { AuthService } from '../core/auth.service';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { insightStatusLabel, isDegraded, sourceLabel } from './insight-labels';
 import { LucideIconCompatComponent } from './lucide-icon-compat.component';
@@ -19,9 +20,9 @@ import { errorMessage, formatDateTime, titleCase } from './view-helpers';
           @if (aiStatus(); as status) {
             <span class="ai-chip" [class.on]="status.available" [title]="status.message">{{ status.available ? 'AI: ' + status.model : 'AI off' }}</span>
           }
-          <button class="button button-secondary" type="button" (click)="generate()" [disabled]="loading()">
+          @if (auth.canEdit()) { <button class="button button-secondary" type="button" (click)="generate()" [disabled]="loading()">
             @if (loading()) { <span class="spinner"></span>Generating… } @else { <lucide-icon [img]="RefreshIcon" [size]="15" /> {{ aiStatus()?.available ? (projectId() ? 'Generate AI insights' : 'Generate AI briefing') : (projectId() ? 'Generate summary' : 'Generate briefing') }} }
-          </button>
+          </button> }
         </div>
       </div>
 
@@ -126,6 +127,7 @@ import { errorMessage, formatDateTime, titleCase } from './view-helpers';
 export class AiInsightsPanelComponent {
   /** Omit for the portfolio briefing across all projects. */
   readonly projectId = input<string | null>(null);
+  protected readonly auth = inject(AuthService);
   private readonly api = inject(DeliveryPulseApi);
   private readonly destroyRef = inject(DestroyRef);
   readonly aiStatus = signal<AiStatusResponse | null>(null);

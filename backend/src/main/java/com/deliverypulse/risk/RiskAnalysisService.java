@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.deliverypulse.auth.ProjectAccess;
 import com.deliverypulse.dependency.DependencyRepository;
 import com.deliverypulse.project.Project;
 import com.deliverypulse.project.ProjectRepository;
@@ -40,17 +41,20 @@ public class RiskAnalysisService {
     private final RiskRepository riskRepository;
     private final TaskStatusChangeRepository statusChangeRepository;
     private final List<RiskRule> rules;
+    private final ProjectAccess access;
     private final Clock clock;
 
     public RiskAnalysisService(ProjectRepository projectRepository, TaskRepository taskRepository,
             DependencyRepository dependencyRepository, RiskRepository riskRepository,
-            TaskStatusChangeRepository statusChangeRepository, List<RiskRule> rules, Clock clock) {
+            TaskStatusChangeRepository statusChangeRepository, List<RiskRule> rules, ProjectAccess access,
+            Clock clock) {
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
         this.dependencyRepository = dependencyRepository;
         this.riskRepository = riskRepository;
         this.statusChangeRepository = statusChangeRepository;
         this.rules = List.copyOf(rules);
+        this.access = access;
         this.clock = clock;
     }
 
@@ -58,7 +62,7 @@ public class RiskAnalysisService {
     public ProjectRiskSummary analyzeProject(UUID projectId, LocalDate requestedAnalysisDate) {
         LocalDate analysisDate = requestedAnalysisDate == null
                 ? LocalDate.now(clock) : requestedAnalysisDate;
-        Project project = projectRepository.findById(projectId)
+        Project project = visibleProject(projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
         List<Task> tasks = taskRepository.findAllByProjectId(projectId);
         var dependencies = dependencyRepository.findAllByDependentTaskProjectId(projectId);
@@ -102,7 +106,7 @@ public class RiskAnalysisService {
 
     @Transactional(readOnly = true)
     public ProjectRiskSummary getProjectRisks(UUID projectId) {
-        Project project = projectRepository.findById(projectId)
+        Project project = visibleProject(projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
         LocalDate asOfDate = project.getLastAnalysisDate() == null
             ? LocalDate.now(clock) : project.getLastAnalysisDate();
@@ -112,7 +116,7 @@ public class RiskAnalysisService {
 
         @Transactional(readOnly = true)
         public ProjectResponse getProjectSummary(UUID projectId) {
-        Project project = projectRepository.findById(projectId)
+        Project project = visibleProject(projectId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
         LocalDate asOfDate = project.getLastAnalysisDate() == null
             ? LocalDate.now(clock) : project.getLastAnalysisDate();
@@ -123,7 +127,7 @@ public class RiskAnalysisService {
 
         @Transactional(readOnly = true)
         public List<ProjectResponse> getProjectSummaries() {
-        return projectRepository.findAll(Sort.by(Sort.Direction.ASC, "name")).stream()
+        return access.filter(projectRepository.findAll(Sort.by(Sort.Direction.ASC, "name"))).stream()
             .map(project -> {
                 LocalDate asOfDate = project.getLastAnalysisDate() == null
                     ? LocalDate.now(clock) : project.getLastAnalysisDate();
@@ -139,7 +143,7 @@ public class RiskAnalysisService {
     public PortfolioRiskSummary getPortfolioSummary() {
         LocalDate analysisDate = LocalDate.now(clock);
         Instant analysisTimestamp = clock.instant();
-        List<Project> projects = projectRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
+        List<Project> projects = access.filter(projectRepository.findAll(Sort.by(Sort.Direction.ASC, "name")));
         List<ProjectRiskSummary> summaries = projects.stream()
             .map(project -> summarize(project,
                 project.getLastAnalysisDate() == null ? analysisDate : project.getLastAnalysisDate(),
@@ -202,6 +206,11 @@ public class RiskAnalysisService {
         return new RiskResponse(risk.getId(), risk.getCategory(), risk.getSeverity(), risk.getCertainty(),
                 risk.getStatus(), risk.getTitle(), risk.getExplanation(), risk.getEvidence(), taskIds,
                 risk.getRecommendedAction(), risk.getDetectedAt());
+    }
+
+    /** Empty for a project the caller may not see, so it answers 404 like a missing one. */
+    private java.util.Optional<Project> visibleProject(UUID projectId) {
+        return access.canSee(projectId) ? projectRepository.findById(projectId) : java.util.Optional.empty();
     }
 
     private Map<RiskSeverity, Long> countBySeverity(List<RiskResponse> risks) {

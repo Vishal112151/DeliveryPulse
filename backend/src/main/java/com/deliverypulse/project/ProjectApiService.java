@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.deliverypulse.auth.ProjectAccess;
 import com.deliverypulse.risk.RiskAnalysisService;
 import com.deliverypulse.shared.domain.Priority;
 import com.deliverypulse.shared.domain.TaskStatus;
@@ -33,13 +34,15 @@ public class ProjectApiService {
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
     private final RiskAnalysisService riskAnalysisService;
+    private final ProjectAccess access;
     private final Clock clock;
 
     public ProjectApiService(ProjectRepository projectRepository, TaskRepository taskRepository,
-            RiskAnalysisService riskAnalysisService, Clock clock) {
+            RiskAnalysisService riskAnalysisService, ProjectAccess access, Clock clock) {
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
         this.riskAnalysisService = riskAnalysisService;
+        this.access = access;
         this.clock = clock;
     }
 
@@ -55,6 +58,7 @@ public class ProjectApiService {
     public TaskPageResponse getProjectTasks(UUID projectId, TaskStatus status, Priority priority,
             String assignee, Boolean overdue, LocalDate requestedAnalysisDate, int page, int size,
             TaskSortField sortBy, TaskSortDirection sortDirection) {
+        access.require(projectId);
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
         // Same as-of date as the project's metrics and risks, so the overdue flags agree with them.
