@@ -1,43 +1,25 @@
 #!/usr/bin/env node
-// Builds a fictional demo project in your own Jira Cloud site, one "week" at a time, so DeliveryPulse's
-// Jira sync can be shown end to end. It mirrors sample-data/release-demo.
+// Builds a fictional five-project portfolio in your own Jira Cloud site, one "week" at a time, so every
+// DeliveryPulse risk rule can be shown from Jira data. The projects and weekly changes are in jira-demo-data.mjs.
 //
-//   node scripts/jira-demo.mjs week1   # create project DPDEMO, releases, components and issues RD-1..RD-6
-//   node scripts/jira-demo.mjs week2   # unblock RD-2, start RD-4, add bug RD-7
-//   node scripts/jira-demo.mjs week3   # block RD-2 again, fix RD-3, start RD-7
+//   node scripts/jira-demo.mjs week1   # create projects PAY, MOB, DATA, CRMX, OPS with releases, components, issues
+//   node scripts/jira-demo.mjs week2   # unblock, finish and add issues
+//   node scripts/jira-demo.mjs week3   # block again (recurring blockers), fix bugs, add a critical bug
 //
 // Click "Sync now" in DeliveryPulse after each week. Reads JIRA_BASE_URL, JIRA_EMAIL and JIRA_API_TOKEN
-// from the repo-root .env (or the environment). It only touches the demo project; the token is never printed.
+// from the repo-root .env (or the environment). It only touches these projects; the token is never printed.
 
 import { readFileSync } from 'node:fs';
+import { ISSUES, PROJECTS, WEEKS } from './jira-demo-data.mjs';
 
 const env = { ...loadEnv(new URL('../.env', import.meta.url)), ...process.env };
 const BASE = (env.JIRA_BASE_URL ?? '').replace(/\/+$/, '');
-const PROJECT = (env.JIRA_DEMO_PROJECT_KEY ?? 'DPDEMO').toUpperCase();
 const BLOCKED_LABEL = env.JIRA_BLOCKED_LABEL || 'blocked';
 const AUTH = 'Basic ' + Buffer.from(`${env.JIRA_EMAIL ?? ''}:${env.JIRA_API_TOKEN ?? ''}`).toString('base64');
 
-const VERSIONS = [
-  { name: 'Alpha', releaseDate: '2026-10-16' },
-  { name: 'Beta', releaseDate: '2026-10-30' },
-  { name: 'GA', releaseDate: '2026-12-15' },
-];
-const COMPONENTS = ['Backend', 'Mobile', 'Web', 'QA', 'Docs'];
-const ISSUES = {
-  'RD-1': { summary: 'Checkout API', type: 'Story', priority: 'High', component: 'Backend', version: 'Alpha', due: '2026-10-15' },
-  'RD-2': { summary: 'Payment provider setup', type: 'Task', priority: 'High', component: 'Backend', version: 'Beta', due: '2026-10-25' },
-  'RD-3': { summary: 'Login crash on Android', type: 'Bug', priority: 'Highest', component: 'Mobile', version: 'Beta', due: '2026-10-24' },
-  'RD-4': { summary: 'Order history page', type: 'Story', priority: 'Medium', component: 'Web', version: 'Beta', due: '2026-11-05' },
-  'RD-5': { summary: 'Load testing', type: 'Task', priority: 'Medium', component: 'QA', version: 'GA', due: '2026-12-01' },
-  'RD-6': { summary: 'Release notes', type: 'Task', priority: 'Low', component: 'Docs', version: 'GA', due: '2026-12-10' },
-  'RD-7': { summary: 'Wrong totals in cart', type: 'Bug', priority: 'High', component: 'Web', version: 'Beta', due: '2026-10-28' },
-};
-// Status targets are Jira status categories: "indeterminate" = In Progress, "done" = Done.
-const WEEKS = {
-  week1: { create: ['RD-1', 'RD-2', 'RD-3', 'RD-4', 'RD-5', 'RD-6'], status: { 'RD-1': 'indeterminate', 'RD-2': 'indeterminate', 'RD-3': 'indeterminate' }, block: ['RD-2'], links: [['RD-5', 'RD-2']] },
-  week2: { create: ['RD-7'], status: { 'RD-4': 'indeterminate' }, unblock: ['RD-2'] },
-  week3: { status: { 'RD-3': 'done', 'RD-7': 'indeterminate' }, block: ['RD-2'] },
-};
+const TODAY = new Date();
+const day = (offset) => offset == null ? undefined
+  : new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate() + offset).toLocaleDateString('en-CA');
 
 const week = process.argv[2];
 if (!WEEKS[week]) fail(`Usage: node scripts/jira-demo.mjs ${Object.keys(WEEKS).join('|')}`);
@@ -53,18 +35,23 @@ try {
 async function run(plan) {
   const me = await jira('GET', '/rest/api/3/myself');
   console.log(`Connected to ${BASE} as ${me.displayName}.`);
-  const project = await ensureProject(me.accountId);
-  const types = new Set(project.issueTypes.map((type) => type.name));
-  if (!types.has('Bug')) fail(`Project ${PROJECT} has no "Bug" issue type. Use a Scrum or Kanban software project.`);
-  await ensureNamed('version', VERSIONS, `/rest/api/3/project/${PROJECT}/versions`,
-    (version) => ({ ...version, projectId: Number(project.id) }));
-  await ensureNamed('component', COMPONENTS.map((name) => ({ name })), `/rest/api/3/project/${PROJECT}/components`,
-    (component) => ({ ...component, project: PROJECT }));
+  const typesByProject = {};
+  for (const spec of PROJECTS) {
+    const project = await ensureProject(spec, me.accountId);
+    const types = new Set(project.issueTypes.map((type) => type.name));
+    if (!types.has('Bug')) fail(`Project ${spec.key} has no "Bug" issue type. Use a Scrum or Kanban software project.`);
+    typesByProject[spec.key] = types;
+    await ensureNamed('version', spec.versions.map((version) => ({ name: version.name, releaseDate: day(version.release) })),
+      `/rest/api/3/project/${spec.key}/versions`, (version) => ({ ...version, projectId: Number(project.id) }));
+    await ensureNamed('component', spec.components.map((name) => ({ name })), `/rest/api/3/project/${spec.key}/components`,
+      (component) => ({ ...component, project: spec.key }));
+  }
 
   const keys = await demoIssueKeys();
+  console.log('Issues:');
   for (const ref of plan.create ?? []) {
     if (keys[ref]) { console.log(`  ${ref} already exists as ${keys[ref]}`); continue; }
-    keys[ref] = await createIssue(ref, types, me.accountId);
+    keys[ref] = await createIssue(ref, typesByProject[ISSUES[ref][0]], me.accountId);
   }
   for (const [ref, category] of Object.entries(plan.status ?? {})) await transition(need(keys, ref), category);
   for (const ref of plan.block ?? []) await setLabel(need(keys, ref), 'add');
@@ -72,21 +59,21 @@ async function run(plan) {
   for (const [dependent, blocker] of plan.links ?? []) await ensureBlockedBy(need(keys, dependent), need(keys, blocker));
 }
 
-async function ensureProject(leadAccountId) {
-  const existing = await jira('GET', `/rest/api/3/project/${PROJECT}`, undefined, { allow404: true });
-  if (existing) { console.log(`Project ${PROJECT} exists.`); return existing; }
+async function ensureProject({ key, name }, leadAccountId) {
+  const existing = await jira('GET', `/rest/api/3/project/${key}`, undefined, { allow404: true });
+  if (existing) { console.log(`Project ${key} exists.`); return existing; }
   try {
     await jira('POST', '/rest/api/3/project', {
-      key: PROJECT, name: 'DeliveryPulse Demo', projectTypeKey: 'software', leadAccountId,
+      key, name, projectTypeKey: 'software', leadAccountId,
       projectTemplateKey: 'com.pyxis.greenhopper.jira:gh-simplified-kanban-classic', assigneeType: 'PROJECT_LEAD',
       description: 'Fictional demo data created by DeliveryPulse scripts/jira-demo.mjs',
     });
   } catch (error) {
     throw new Error(`${error.message}\nCould not create the project. Create a company-managed Kanban software project `
-      + `with key ${PROJECT} in Jira yourself, then run this command again.`);
+      + `named "${name}" with key ${key} in Jira yourself, then run this command again.`);
   }
-  console.log(`Created project ${PROJECT}.`);
-  return jira('GET', `/rest/api/3/project/${PROJECT}`);
+  console.log(`Created project ${key} (${name}).`);
+  return jira('GET', `/rest/api/3/project/${key}`);
 }
 
 async function ensureNamed(kind, wanted, listPath, body) {
@@ -100,10 +87,18 @@ async function ensureNamed(kind, wanted, listPath, body) {
 /** Demo issues carry a label like "dp-rd-2", so reruns find them instead of creating duplicates. */
 async function demoIssueKeys() {
   const labels = Object.keys(ISSUES).map(demoLabel);
-  const jql = `project = ${PROJECT} AND labels in (${labels.map((label) => `"${label}"`).join(', ')})`;
-  const page = await jira('GET', `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=labels&maxResults=100`);
+  const jql = `project in (${PROJECTS.map((project) => project.key).join(', ')}) `
+    + `AND labels in (${labels.map((label) => `"${label}"`).join(', ')})`;
   const keys = {};
-  for (const issue of page.issues ?? []) {
+  const issues = [];
+  let token;
+  do {
+    const page = await jira('GET', `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=labels&maxResults=100`
+      + (token ? `&nextPageToken=${encodeURIComponent(token)}` : ''));
+    issues.push(...(page.issues ?? []));
+    token = page.isLast === false ? page.nextPageToken : undefined;
+  } while (token);
+  for (const issue of issues) {
     const ref = Object.keys(ISSUES).find((candidate) => issue.fields.labels.includes(demoLabel(candidate)));
     if (ref) keys[ref] = issue.key;
   }
@@ -111,12 +106,13 @@ async function demoIssueKeys() {
 }
 
 async function createIssue(ref, types, accountId) {
-  const spec = ISSUES[ref];
+  const [project, type, priority, summary, component, version, due, assigned] = ISSUES[ref];
   const fields = {
-    project: { key: PROJECT }, summary: spec.summary,
-    issuetype: { name: types.has(spec.type) ? spec.type : 'Task' },
-    priority: { name: spec.priority }, duedate: spec.due, components: [{ name: spec.component }],
-    fixVersions: [{ name: spec.version }], labels: [demoLabel(ref)], assignee: { accountId },
+    project: { key: project }, summary, issuetype: { name: types.has(type) ? type : 'Task' },
+    priority: { name: priority }, components: [{ name: component }], fixVersions: [{ name: version }],
+    labels: [demoLabel(ref)],
+    ...(due == null ? {} : { duedate: day(due) }),
+    ...(assigned ? { assignee: { accountId } } : {}),
   };
   let created;
   try {
@@ -129,7 +125,7 @@ async function createIssue(ref, types, accountId) {
     rejected.forEach((field) => delete fields[field]);
     created = await jira('POST', '/rest/api/3/issue', { fields });
   }
-  console.log(`  created ${created.key} (${ref} ${spec.summary})`);
+  console.log(`  created ${created.key} (${summary})`);
   return created.key;
 }
 

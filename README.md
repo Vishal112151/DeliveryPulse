@@ -412,7 +412,7 @@ DeliveryPulse can read issues from **Jira Cloud** and import them like an upload
    JIRA_BASE_URL=https://yourname.atlassian.net
    JIRA_EMAIL=the-email-you-log-in-with
    JIRA_API_TOKEN=...
-   JIRA_PROJECT_KEYS=DPDEMO          # comma-separated
+   JIRA_PROJECT_KEYS=PAY,MOB,DATA,CRMX,OPS   # comma-separated
    ```
 3. **Upload data** now shows a **Sync from Jira** panel. Click **Sync now**, then **Run analysis** on the synced projects.
 
@@ -436,18 +436,28 @@ Descriptions are not imported. Issues deleted in Jira stay in DeliveryPulse with
 
 ### Demo data in your own Jira
 
-[`scripts/jira-demo.mjs`](scripts/jira-demo.mjs) builds a fictional project `DPDEMO` ("DeliveryPulse Demo") in your Jira site through the REST API, mirroring the release demo in section 6. Run it one week at a time and sync after each:
+[`scripts/jira-demo.mjs`](scripts/jira-demo.mjs) builds a fictional five-project portfolio (34 issues) in your Jira site through the REST API. The data is in [`scripts/jira-demo-data.mjs`](scripts/jira-demo-data.mjs), and dates are relative to the day you run it, so the demo never goes stale. Between them, the projects trigger every rule:
+
+| Project | Story | Shows |
+| --- | --- | --- |
+| `PAY` Payments Revamp | Launch in 10 days is in trouble | Blocked Critical task that recurs, overdue task, Critical/High bugs, dependency on a blocked and an overdue task, task due after the milestone, a completed Pilot release |
+| `MOB` Mobile App 3.0 | Beta date has passed | Missed milestone, overdue Critical bug (fixed in week 3), overdue story, GA at risk (Medium) once Offline mode is blocked |
+| `DATA` Data Platform | Healthy | Completed Q3 release, on-track Q4 release, a Low bug that closes |
+| `CRMX` CRM Migration | Messy data | Missing due dates and assignees, a release without a date ("No Date"), a link to an issue in another project |
+| `OPS` Ops & Infra | Dependency chain | Prerequisite overdue (High) or incomplete (Medium), recurring Critical blocker, a new Critical bug in week 3, task due after the milestone |
+
+Set `JIRA_PROJECT_KEYS=PAY,MOB,DATA,CRMX,OPS`, then run it one week at a time and sync after each:
 
 ```powershell
-node scripts/jira-demo.mjs week1   # project, releases Alpha/Beta/GA, components, issues RD-1..RD-6, RD-2 blocked
+node scripts/jira-demo.mjs week1   # 5 projects with releases, components and 31 issues
 # Sync now in DeliveryPulse
-node scripts/jira-demo.mjs week2   # RD-2 unblocked, RD-4 started, bug RD-7 added
+node scripts/jira-demo.mjs week2   # PAY-1 and OPS-4 unblocked, work finished, bugs PAY-8 and MOB-7 added
 # Sync now
-node scripts/jira-demo.mjs week3   # RD-2 blocked again, RD-3 fixed, RD-7 started
-# Sync now, then Run analysis
+node scripts/jira-demo.mjs week3   # PAY-1 and OPS-4 blocked again, MOB-2 fixed, bug OPS-7 added
+# Sync now, then Analyze all projects
 ```
 
-It reads the same `.env`, needs Node 22 (already required by the frontend), and only touches the `DPDEMO` project. Reruns are safe: existing demo issues are found by their `dp-rd-N` label. If your site cannot create projects through the API, create a company-managed Kanban software project with key `DPDEMO` yourself and run `week1` again. If a field such as priority is hidden on the project's create screen, the script creates the issue without it and says so.
+It reads the same `.env`, needs Node 22 (already required by the frontend), and only touches these five projects. Reruns are safe: existing demo issues are found by their `dp-<ref>` label. If your site cannot create projects through the API, create company-managed Kanban software projects with those keys and names yourself and run `week1` again. If a field such as priority is hidden on a project's create screen, the script creates the issue without it and says so.
 
 Use only fictional data in a personal Jira site. Don't copy real company projects there without permission.
 
