@@ -4,11 +4,13 @@ DeliveryPulse is a locally run proof of concept that imports project task data f
 
 - **Backend:** Java 21, Spring Boot 3.5.6, Spring Data JPA, Flyway, PostgreSQL, Apache POI 5.4.1, Apache Commons CSV 1.14.1, springdoc-openapi
 - **Frontend:** Angular 22, TypeScript 6, Chart.js 4, Lucide icons, Vitest
-- **Optional:** AI insights via the Anthropic Java SDK (`anthropic-java` 2.34.0), off by default — see section 12
+- **Sign-in and access control:** Admin, Manager and Viewer roles with per-project access (section 15)
+- **Scheduled jobs:** daily refresh and weekly report snapshots (section 14)
+- **Optional:** AI insights via Google Gemini (REST) or Anthropic Claude (`anthropic-java` 2.34.0), off by default (section 12)
 - **Optional:** read-only Jira Cloud sync, off by default (section 13)
-- **Not included:** authentication, scheduled jobs, Planner integration
+- **Not included:** Planner integration, single sign-on (SSO)
 
-The API is intended for trusted local use. Do not expose it publicly without adding authentication, authorization and deployment security controls.
+Every API call needs a signed-in user. Before exposing it beyond your machine, also put it behind HTTPS and review the deployment settings.
 
 ---
 
@@ -215,7 +217,12 @@ Every import records the status each task enters (`task_status_history`): the fi
 | --- | --- |
 | `POST /api/uploads/excel?update=false` | Import `.xlsx`/`.xls` (multipart field `file`); `update=true` updates projects that already exist |
 | `POST /api/uploads/csv?update=false` | Import one `.csv` project; `update=true` as above |
-| `GET /api/projects` | Projects with task metrics and risk counts by severity (sorted by name) |
+| `POST /api/auth/login` | Sign in with `{username, password}`; returns a bearer token. Every other `/api` call needs `Authorization: Bearer <token>` |
+| `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/password` | End the session, current user and their project ids, change your own password |
+| `GET/POST /api/users`, `PUT /api/users/{id}` | Admin: list, create and update users (role, active, password, project access) |
+| `GET /api/jobs`, `POST /api/jobs/{refresh\|weekly-report}/run` | Job schedules, next and last runs; admin: run a job now |
+| `GET /api/reports/weekly/snapshots`, `GET /api/reports/weekly/snapshots/{id}` | Admin: saved weekly reports (same shape as the live report) |
+| `GET /api/projects` | Projects the caller may see, with task metrics and risk counts by severity (sorted by name) |
 | `GET /api/projects/{id}` | One project's metrics |
 | `GET /api/projects/{id}/tasks` | Paged tasks; filters `status`, `priority`, `assignee`, `overdue`, `analysisDate` (defaults to the project's last analysis date, or today if never analyzed); `page`, `size` (1–100), `sortBy`, `sortDirection` |
 | `POST /api/projects/{id}/analyze?analysisDate=yyyy-MM-dd` | Run the risk rules (date optional; defaults to today in `APP_TIME_ZONE`) |
@@ -227,6 +234,8 @@ Every import records the status each task enters (`task_status_history`): the fi
 | `POST /api/integrations/jira/sync` | Import the configured Jira projects as an update (same response as an upload) |
 | `POST /api/projects/{id}/insights` | Executive summary, top-risk explanations, actions and a weekly status draft — AI-generated when available, deterministic otherwise (section 12) |
 | `POST /api/portfolio/insights` | The same four sections across all projects (`projectId` is `null`, `projectName` is `All projects`) |
+
+Access rules: Viewers can read; Managers can also upload, analyze and generate insights; Admins can do everything, including Jira sync, jobs, snapshots and users. Managers and Viewers see only their assigned projects, and any other project answers `404`. Missing or expired sign-in answers `401`; a role that may not do something answers `403`.
 
 Errors use RFC 7807 Problem Details (`{"status":404,"title":"Not Found","detail":"Project not found",...}`). Upload validation responses (`409`/`422`) return the import summary with an `errors` array instead.
 
@@ -269,7 +278,7 @@ Risk counts are counts of **findings**, not of tasks, and there is no weighted s
 
 1. Reset the database if it already contains the sample projects (section 2).
 2. Start the backend (it reads `DB_PASSWORD` and `APP_TIME_ZONE` from `.env`), then start the frontend (section 4).
-3. Open <http://localhost:4200> → the **Dashboard** shows the empty state.
+3. Open <http://localhost:4200> → sign in as the admin (section 15) → the **Dashboard** shows the empty state.
 4. **Upload data** → choose `DeliveryPulse_Multi_Project_Sample.xlsx` → **Import file** → summary shows 4 projects, 25 tasks, `Read Me` skipped.
 5. **Projects** → four projects (CRM, DataPlatform, ECommerce, MobileApp), each "Not analyzed".
 6. Open **ECommerce** → **Run analysis** → 11 active risks, including the Critical "EC-102 Payment Gateway Integration" (blocked and overdue). Each risk card shows its evidence and supporting task IDs, which can be checked against the task table. For the other projects, click **Analyze all projects** on the **Dashboard** or **Risk analysis** page (it analyzes each project in turn and shows progress).
@@ -301,8 +310,9 @@ The numbers in steps 6–7 assume the demo runs on 2026-10-15. On a different da
 
 ## 11. Known limitations
 
-- No authentication or authorization. With Jira sync configured, anyone who can reach the API can trigger a sync (read-only) with your token.
-- Jira sync runs only when someone clicks **Sync now** (no schedule), and it reads only Jira Cloud.
+- Users are local to DeliveryPulse (no SSO or LDAP). Sign-in lockout and job run history are kept in memory and reset when the backend restarts.
+- Jira sync reads only Jira Cloud. It runs with the daily refresh job, or when an admin clicks **Sync now**.
+- Saved weekly report snapshots are admin-only, because a snapshot contains every project.
 - No project delete API; resetting the database is the only way to remove a project. Update uploads never remove tasks that are missing from the file.
 - No import-history endpoint (import runs are recorded in `import_runs` but not exposed); no dependency-graph endpoint (project detail shows the original blocker text and the risk supporting task IDs).
 - Each project's metrics and risks are as of its own last analysis date. The portfolio, dashboard and weekly report add those up while labelling the snapshot with today's date, so a project analyzed days ago contributes its older numbers. Re-run analysis on each project for a same-day picture.
@@ -330,24 +340,30 @@ AI is **off by default**. The panel then builds the same sections from the deter
 
 ### Turning it on
 
-AI runs only when **all three** of these are set in the backend's environment:
+AI runs only when **all three** of the switch, a key and the data-sharing authorization are set. Put them in `.env` (git-ignored) and restart the backend.
 
-```powershell
-$env:AI_INSIGHTS_ENABLED = "true"
-$env:ANTHROPIC_API_KEY = "<your key>"                 # environment only — never in files or source control
-$env:AI_EXTERNAL_DATA_SHARING_AUTHORIZED = "true"     # confirms you may send this project data to Anthropic
+**Google Gemini:**
 ```
+AI_INSIGHTS_ENABLED=true
+AI_PROVIDER=gemini
+AI_API_KEY=<your Gemini API key from https://aistudio.google.com/apikey>
+AI_MODEL=gemini-2.5-flash
+AI_EXTERNAL_DATA_SHARING_AUTHORIZED=true   # confirms you may send this project data to Google
+```
+
+**Anthropic Claude:** `AI_PROVIDER=anthropic`, `AI_API_KEY=<key>` (the older `ANTHROPIC_API_KEY` still works), `AI_MODEL=claude-opus-5-5`.
 
 Restart the backend, then check `GET /api/ai/status`: `"available": true` means it is ready.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `AI_INSIGHTS_ENABLED` | `false` | Master switch |
-| `ANTHROPIC_API_KEY` | empty | Provider credential (read from the environment only; never logged or returned) |
+| `AI_PROVIDER` | `anthropic` | `gemini` or `anthropic` |
+| `AI_API_KEY` | empty | Provider credential (never logged or returned). `ANTHROPIC_API_KEY` is read when this is empty |
 | `AI_EXTERNAL_DATA_SHARING_AUTHORIZED` | `false` | Explicit authorization to send project data to the external provider |
-| `AI_MODEL` | `claude-opus-5-5` | Model ID |
+| `AI_MODEL` | provider default | `gemini-2.5-flash` for Gemini, `claude-opus-5-5` for Anthropic |
 | `AI_TIMEOUT` | `60s` | Per-request timeout |
-| `AI_MAX_RETRIES` | `2` | SDK retries for 429/5xx/connection errors |
+| `AI_MAX_RETRIES` | `2` | Retries for 429/5xx errors (Gemini: 429/500/503) |
 | `AI_MAX_OUTPUT_TOKENS` | `16000` | Output cap per request |
 | `AI_SERVER_SIDE_FALLBACKS` | `true` | If the model declines a request, the provider retries it on another model (sends the `server-side-fallback-2026-07-01` beta header) |
 | `AI_INCLUDE_ASSIGNEE_NAMES` | `false` | Send real assignee names (otherwise "Person 1", "Person 2", …) |
@@ -380,9 +396,11 @@ Pricing for `claude-opus-5-5`: $4 per million input tokens, $20 per million outp
 
 Estimate for one sample-workbook project (about 8 tasks and 10 risks, not measured against the live API): a few thousand input tokens plus a few thousand output tokens, so **roughly $0.05–$0.15 per click**. Larger projects cost proportionally more. Generation happens only when someone clicks the button; results are not cached. Each successful call logs `inputTokens`/`outputTokens`, so you can track actual spend.
 
-### Swapping the provider
+### Providers
 
-The service depends only on `com.deliverypulse.insights.llm.LlmClient`. To use another provider, add a new implementation and select it in `LlmConfiguration` with `AI_PROVIDER`. The prompt, validation and fallback stay unchanged.
+The service depends only on `com.deliverypulse.insights.llm.LlmClient`. `AnthropicLlmClient` uses the Anthropic SDK with structured outputs. `GeminiLlmClient` calls `models/{model}:generateContent` over plain HTTPS with a JSON response schema built from the response records (`JsonSchemas`). The prompt, validation and deterministic fallback are the same for both. To add another provider, implement `LlmClient` and select it in `LlmConfiguration`.
+
+**Gemini privacy note:** on Google's free tier, prompts may be used to improve Google's products. Use the free tier only with fictional or non-confidential data, such as the demo projects.
 
 ### Tests
 
@@ -464,3 +482,40 @@ Use only fictional data in a personal Jira site. Don't copy real company project
 ### Tests
 
 The client is tested against a mocked HTTP server (paging, Basic auth, query, error handling, key validation), the field mapping against a recorded-style search response, and the sync end to end through the Spring context with only the Jira HTTP call mocked. The seeding script and the sync have not yet been run against a live Jira site.
+
+---
+
+## 14. Scheduled jobs
+
+Two jobs run inside the backend, in `APP_TIME_ZONE`:
+
+| Job | Default schedule | What it does |
+| --- | --- | --- |
+| `refresh` | Every day 06:00 (`SCHEDULE_REFRESH_CRON=0 0 6 * * *`) | Jira sync if Jira is configured, then analysis of every project as of today |
+| `weekly-report` | Monday 07:00 (`SCHEDULE_WEEKLY_REPORT_CRON=0 0 7 * * MON`) | Saves the weekly report as a snapshot (`weekly_report_snapshots`) |
+
+Cron fields are `second minute hour day-of-month month day-of-week`. `SCHEDULE_ENABLED=false` turns the timers off; admins can still run each job from the **Automation** panel on **Upload data**, which also shows the next run and the last result. On **Reports**, admins can pick a saved report from the **Report** list to reopen an earlier week exactly as it was.
+
+If the backend is not running at the scheduled time, that run is skipped (no catch-up). Last-run results are kept in memory.
+
+---
+
+## 15. Users and access
+
+| Role | Can see | Can do |
+| --- | --- | --- |
+| Admin | Every project | Everything, including users, Jira sync, jobs and saved reports |
+| Manager | Assigned projects | Upload (new projects become theirs), update their projects, run analysis, generate insights |
+| Viewer | Assigned projects | Read only |
+
+**First admin:** when there are no users, the backend creates `APP_ADMIN_USERNAME` (default `admin`) with `APP_ADMIN_PASSWORD`. If that is empty, it generates a password and writes it **once** to the backend log (`Created the first admin user ... with generated password`). Sign in and change it on the **Users** page.
+
+**Users page** (admins): create users, set role and status, reset passwords and tick the projects a Manager or Viewer can see. Disabling a user or resetting their password signs them out.
+
+**Sessions:** signing in returns a random bearer token that lasts `APP_SESSION_HOURS` (default 12). The database stores only a SHA-256 hash of it. The browser keeps it in session storage, so closing the tab signs you out. Passwords are stored with BCrypt. Five wrong passwords lock a username for five minutes. The API answers `404` for projects outside your access, so their existence is not revealed.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_ADMIN_USERNAME` | `admin` | First admin's username |
+| `APP_ADMIN_PASSWORD` | empty (generated) | First admin's password; used only when no users exist |
+| `APP_SESSION_HOURS` | `12` | Session length |
