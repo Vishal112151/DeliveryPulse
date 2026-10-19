@@ -53,8 +53,10 @@ app:
   ai:
     enabled: ${AI_INSIGHTS_ENABLED:false}
     provider: ${AI_PROVIDER:anthropic}
-    api-key: ${ANTHROPIC_API_KEY:}
-    model: ${AI_MODEL:claude-opus-5-5}
+    # AI_API_KEY works for any provider; ANTHROPIC_API_KEY is still read for older .env files.
+    api-key: ${AI_API_KEY:${ANTHROPIC_API_KEY:}}
+    # Empty picks the provider's default model (see AiInsightsProperties).
+    model: ${AI_MODEL:}
     timeout: ${AI_TIMEOUT:60s}
     max-retries: ${AI_MAX_RETRIES:2}
     max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:16000}

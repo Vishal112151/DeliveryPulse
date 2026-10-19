@@ -16,6 +16,9 @@ public class LlmConfiguration {
         if ("anthropic".equalsIgnoreCase(properties.provider())) {
             return new AnthropicLlmClient(properties);
         }
+        if ("gemini".equalsIgnoreCase(properties.provider())) {
+            return new GeminiLlmClient(properties);
+        }
         return new UnsupportedProviderClient(properties.provider());
     }
 

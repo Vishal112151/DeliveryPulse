@@ -28,13 +28,19 @@ public record AiInsightsProperties(
 
     public AiInsightsProperties {
         provider = provider == null || provider.isBlank() ? "anthropic" : provider.trim();
-        model = model == null || model.isBlank() ? "claude-opus-5-5" : model.trim();
+        model = model == null || model.isBlank() ? defaultModel(provider) : model.trim();
         timeout = timeout == null ? Duration.ofSeconds(60) : timeout;
         maxOutputTokens = maxOutputTokens <= 0 ? 16000 : maxOutputTokens;
         maxTasks = maxTasks <= 0 ? 200 : maxTasks;
         maxRisks = maxRisks <= 0 ? 10 : maxRisks;
         maxExplainedRisks = maxExplainedRisks <= 0 ? 5 : Math.min(maxExplainedRisks, maxRisks);
         maxTextLength = maxTextLength <= 0 ? 500 : maxTextLength;
+    }
+
+    static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+
+    private static String defaultModel(String provider) {
+        return provider.equalsIgnoreCase("gemini") ? DEFAULT_GEMINI_MODEL : "claude-opus-5-5";
     }
 
     public boolean hasApiKey() {
