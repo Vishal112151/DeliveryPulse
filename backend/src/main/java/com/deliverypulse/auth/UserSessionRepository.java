@@ -14,7 +14,8 @@ public interface UserSessionRepository extends JpaRepository<UserSession, String
     @Query("delete from UserSession s where s.expiresAt < :now")
     int deleteExpired(@Param("now") Instant now);
 
-    @Modifying
+    /** Flushes pending changes first and clears the persistence context, so no stale session survives in it. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from UserSession s where s.user.id = :userId")
     int deleteAllForUser(@Param("userId") UUID userId);
 }

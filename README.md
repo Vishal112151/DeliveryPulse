@@ -519,3 +519,14 @@ If the backend is not running at the scheduled time, that run is skipped (no cat
 | `APP_ADMIN_USERNAME` | `admin` | First admin's username |
 | `APP_ADMIN_PASSWORD` | empty (generated) | First admin's password; used only when no users exist |
 | `APP_SESSION_HOURS` | `12` | Session length |
+| `APP_ADMIN_RESET` | `false` | Break-glass password reset for `APP_ADMIN_USERNAME` (below) |
+
+### Forgot the admin password
+
+Another admin can set a new password on the **Users** page, so it is worth having a second admin. If no admin can sign in:
+
+1. In `.env`, set `APP_ADMIN_PASSWORD=<new password, at least 8 characters>` and `APP_ADMIN_RESET=true`.
+2. Restart the backend. On startup it sets that password on `APP_ADMIN_USERNAME` (default `admin`), makes the account an active Admin, signs it out everywhere and logs `APP_ADMIN_RESET: reset the password of admin user ...`. The password itself is never logged. If the user does not exist, it is created.
+3. Sign in, then **set `APP_ADMIN_RESET=false` (or remove it) and restart**. While it is on, every restart resets the password again.
+
+Only someone who can edit the server's `.env` and restart it can do this. If the password is missing or shorter than 8 characters, the backend logs an error and changes nothing.
