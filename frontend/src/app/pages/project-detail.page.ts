@@ -14,6 +14,7 @@ import {
   TaskSortField,
   TaskStatus,
 } from '../core/api.models';
+import { AuthService } from '../core/auth.service';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { RiskCardsComponent } from '../shared/risk-cards.component';
 import { AiInsightsPanelComponent } from '../shared/ai-insights-panel.component';
@@ -28,7 +29,7 @@ import { errorMessage, formatDate, formatDateTime, titleCase } from '../shared/v
     @if (loadingProject() && !project()) { <div class="state-panel"><span class="spinner"></span>Loading project…</div> }
     @else if (projectError()) { <div class="state-error" role="alert"><strong>Project unavailable</strong><span>{{ projectError() }}</span></div> }
     @else if (project(); as item) {
-      <section class="page-heading"><div><div class="eyebrow">PROJECT DETAIL</div><h1>{{ item.name }}</h1><p class="heading-copy">{{ item.description || item.sourceSheetName || 'Project delivery overview' }}</p></div><button class="button button-secondary" type="button" (click)="analyze()" [disabled]="analyzing()">@if (analyzing()) { <span class="spinner"></span>Analyzing… } @else { <lucide-icon [img]="RefreshIcon" [size]="15" /> Run analysis }</button></section>
+      <section class="page-heading"><div><div class="eyebrow">PROJECT DETAIL</div><h1>{{ item.name }}</h1><p class="heading-copy">{{ item.description || item.sourceSheetName || 'Project delivery overview' }}</p></div>@if (auth.canEdit()) { <button class="button button-secondary" type="button" (click)="analyze()" [disabled]="analyzing()">@if (analyzing()) { <span class="spinner"></span>Analyzing… } @else { <lucide-icon [img]="RefreshIcon" [size]="15" /> Run analysis }</button> }</section>
 
       <div class="summary-grid">
         <article class="summary-metric"><span>Tasks</span><strong>{{ item.taskCount }}</strong><small>{{ item.completedTaskCount }} completed</small></article>
@@ -91,6 +92,7 @@ import { errorMessage, formatDate, formatDateTime, titleCase } from '../shared/v
   `],
 })
 export class ProjectDetailPage {
+  protected readonly auth = inject(AuthService);
   private readonly api = inject(DeliveryPulseApi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);

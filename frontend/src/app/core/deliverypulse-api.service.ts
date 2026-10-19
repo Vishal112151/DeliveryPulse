@@ -17,6 +17,13 @@ import {
   TaskQuery,
   WeeklyReportResponse,
 } from './api.models';
+import { Role, SessionUser } from './auth.service';
+
+export interface UserInput {
+  displayName: string;
+  role: Role;
+  projectIds: string[];
+}
 
 @Injectable({ providedIn: 'root' })
 export class DeliveryPulseApi {
@@ -78,6 +85,22 @@ export class DeliveryPulseApi {
 
   generatePortfolioInsights(): Observable<ProjectInsightsResponse> {
     return this.http.post<ProjectInsightsResponse>(`${this.baseUrl}/portfolio/insights`, null);
+  }
+
+  listUsers(): Observable<SessionUser[]> {
+    return this.http.get<SessionUser[]>(`${this.baseUrl}/users`);
+  }
+
+  createUser(user: UserInput & { username: string; password: string }): Observable<SessionUser> {
+    return this.http.post<SessionUser>(`${this.baseUrl}/users`, user);
+  }
+
+  updateUser(id: string, user: UserInput & { active: boolean; password?: string }): Observable<SessionUser> {
+    return this.http.put<SessionUser>(`${this.baseUrl}/users/${id}`, user);
+  }
+
+  changeOwnPassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/auth/password`, { currentPassword, newPassword });
   }
 
   getJobs(): Observable<JobStatus[]> {

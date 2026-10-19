@@ -2,6 +2,7 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LucideClock as Clock, LucidePlay as Play } from '@lucide/angular';
 import { JobStatus } from '../core/api.models';
+import { AuthService } from '../core/auth.service';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { LucideIconCompatComponent } from './lucide-icon-compat.component';
 import { errorMessage, formatDateTime } from './view-helpers';
@@ -27,9 +28,11 @@ import { errorMessage, formatDateTime } from './view-helpers';
                   <small [class.failed]="!run.succeeded">Last run {{ formatDateTime(run.finishedAt) }}{{ run.manual ? ' (manual)' : '' }}: {{ run.succeeded ? '' : 'failed: ' }}{{ run.message }}</small>
                 } @else { <small>Not run since the backend started</small> }
               </div>
-              <button class="run-button" type="button" (click)="run(job.name)" [disabled]="busy() !== null || job.running">
-                @if (busy() === job.name || job.running) { <span class="spinner"></span> Running… } @else { <lucide-icon [img]="PlayIcon" [size]="13" /> Run now }
-              </button>
+              @if (auth.isAdmin()) {
+                <button class="run-button" type="button" (click)="run(job.name)" [disabled]="busy() !== null || job.running">
+                  @if (busy() === job.name || job.running) { <span class="spinner"></span> Running… } @else { <lucide-icon [img]="PlayIcon" [size]="13" /> Run now }
+                </button>
+              }
             </article>
           }
         </div>
@@ -50,6 +53,7 @@ import { errorMessage, formatDateTime } from './view-helpers';
   `],
 })
 export class AutomationPanelComponent {
+  protected readonly auth = inject(AuthService);
   private readonly api = inject(DeliveryPulseApi);
   private readonly destroyRef = inject(DestroyRef);
   readonly jobs = signal<JobStatus[]>([]);

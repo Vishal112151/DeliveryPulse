@@ -14,6 +14,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.deliverypulse.auth.ProjectAccess;
 import com.deliverypulse.dependency.Dependency;
 import com.deliverypulse.dependency.DependencyRepository;
 import com.deliverypulse.project.Project;
@@ -31,16 +32,18 @@ public class ImportPersistenceService {
     private final DependencyRepository dependencyRepository;
     private final ImportRunRepository importRunRepository;
     private final TaskStatusChangeRepository statusChangeRepository;
+    private final ProjectAccess access;
     private final Clock clock;
 
     public ImportPersistenceService(ProjectRepository projectRepository, TaskRepository taskRepository,
             DependencyRepository dependencyRepository, ImportRunRepository importRunRepository,
-            TaskStatusChangeRepository statusChangeRepository, Clock clock) {
+            TaskStatusChangeRepository statusChangeRepository, ProjectAccess access, Clock clock) {
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
         this.dependencyRepository = dependencyRepository;
         this.importRunRepository = importRunRepository;
         this.statusChangeRepository = statusChangeRepository;
+        this.access = access;
         this.clock = clock;
     }
 
@@ -56,12 +59,17 @@ public class ImportPersistenceService {
         }
 
         List<ImportIssue> errors = new ArrayList<>();
-        if (!updateExisting) {
-            for (ImportProject project : document.projects()) {
-                if (projectRepository.existsByNameIgnoreCase(project.name())) {
-                    errors.add(new ImportIssue(project.name(), null, null, "PROJECT_ALREADY_EXISTS",
-                            "A project with this name already exists; the upload was not imported."));
-                }
+        for (ImportProject project : document.projects()) {
+            Optional<Project> existing = projectRepository.findByNameIgnoreCase(project.name());
+            if (existing.isEmpty()) {
+                continue;
+            }
+            if (!updateExisting) {
+                errors.add(new ImportIssue(project.name(), null, null, "PROJECT_ALREADY_EXISTS",
+                        "A project with this name already exists; the upload was not imported."));
+            } else if (!access.canSee(existing.get().getId())) {
+                errors.add(new ImportIssue(project.name(), null, null, "PROJECT_NOT_ACCESSIBLE",
+                        "A project with this name exists but is not assigned to you; ask an admin."));
             }
         }
         if (!errors.isEmpty()) {
@@ -75,8 +83,11 @@ public class ImportPersistenceService {
         List<String> importedProjectNames = new ArrayList<>();
         for (ImportProject importProject : document.projects()) {
             Optional<Project> existing = projectRepository.findByNameIgnoreCase(importProject.name());
-            Project project = existing.orElseGet(() ->
-                    projectRepository.save(new Project(importProject.name(), importProject.name(), null)));
+            Project project = existing.orElseGet(() -> {
+                Project created = projectRepository.save(new Project(importProject.name(), importProject.name(), null));
+                access.grantToCurrentUser(created);
+                return created;
+            });
             importedProjectNames.add(project.getName());
 
             Map<String, Task> tasksByKey = new HashMap<>();

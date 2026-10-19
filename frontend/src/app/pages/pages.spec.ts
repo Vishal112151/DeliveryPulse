@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { signInAs } from '../core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { PortfolioRiskSummary, ProjectRiskSummary, RiskResponse } from '../core/api.models';
 import { DashboardPage } from './dashboard.page';
@@ -45,6 +46,7 @@ describe('Pages against the API', () => {
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting(), ...(extraProviders as never[])],
     });
+    signInAs('ADMIN');
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(page);
     fixture.detectChanges();

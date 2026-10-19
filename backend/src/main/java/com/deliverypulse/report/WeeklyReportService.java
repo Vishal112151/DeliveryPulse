@@ -82,6 +82,10 @@ public class WeeklyReportService {
         List<TaskStatusChange> changes = statusChangeRepository.findAllChangedBetween(
                 startDate.atStartOfDay(clock.getZone()).toInstant(),
                 endDate.plusDays(1).atStartOfDay(clock.getZone()).toInstant());
+        // Only the projects in the (already access-filtered) portfolio count towards this caller's activity.
+        java.util.Set<UUID> visible = portfolio.projects().stream().map(ProjectRiskSummary::projectId)
+                .collect(Collectors.toSet());
+        changes = changes.stream().filter(change -> visible.contains(change.getTask().getProject().getId())).toList();
         Map<UUID, List<TaskStatusChange>> changesByProject = changes.stream()
                 .collect(Collectors.groupingBy(change -> change.getTask().getProject().getId()));
         Map<UUID, WeeklyActivity> activityByProject = portfolio.projects().stream()

@@ -33,6 +33,7 @@ import com.deliverypulse.task.TaskRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 @ActiveProfiles("test")
 @Import(ProjectPortfolioApiTests.FixedTimeConfiguration.class)
 @Transactional
