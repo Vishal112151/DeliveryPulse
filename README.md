@@ -156,6 +156,26 @@ Upload from the UI (**Upload data → Browse files → Import file**) or from th
 curl.exe -X POST http://localhost:8080/api/uploads/excel -F "file=@$env:USERPROFILE\Downloads\DeliveryPulse_Multi_Project_Sample.xlsx"
 ```
 
+### Release demo (milestones, defects, history)
+
+[`sample-data/release-demo`](sample-data/release-demo) holds three weekly exports of one project, `ReleaseDemo` (7 tasks, three milestones, two bugs). Upload them in order: `week1` as a normal import, then `week2` and `week3` with **Update existing projects** ticked.
+
+```powershell
+curl.exe -X POST http://localhost:8080/api/uploads/csv -F "file=@sample-data\release-demo\week1\ReleaseDemo.csv"
+curl.exe -X POST "http://localhost:8080/api/uploads/csv?update=true" -F "file=@sample-data\release-demo\week2\ReleaseDemo.csv"
+curl.exe -X POST "http://localhost:8080/api/uploads/csv?update=true" -F "file=@sample-data\release-demo\week3\ReleaseDemo.csv"
+```
+
+Between the weeks, RD-2 goes Blocked → In Progress → Blocked, the RD-3 crash bug is fixed, and bug RD-7 is added. Analysed with `analysisDate=2026-10-19`, the project has **7 active findings (1 Critical, 6 High)**:
+
+- **Milestone missed: Alpha** (Critical): its date was 2026-10-16 and RD-1 is still open.
+- **Milestone at risk: Beta** (High, 11 days left): RD-2 is blocked and RD-4 is due after the milestone.
+- **Recurring blocker: RD-2**: blocked in week 1 and again in week 3.
+- **Open high-priority defect: RD-7**.
+- The overdue RD-1, blocked RD-2 and RD-5's dependency on RD-2 come from the existing rules.
+
+The Milestones table on the project page shows Alpha Missed, Beta At Risk and GA On Track, with 1 open defect. The weekly report shows the week's movement. Because all three files are uploaded on the same day, it counts them as one week. `UploadControllerTests.releaseDemoWeeksProduceTheDocumentedFindings` checks these numbers.
+
 ### Workbook format
 
 - One worksheet per project; the worksheet name becomes the project name. Sheets named `Read Me`, `Instructions`, `How To`, `Guide` or `About` are skipped, and so are hidden worksheets (for example dropdown-list helper sheets), with a warning. Sheet names are trimmed.

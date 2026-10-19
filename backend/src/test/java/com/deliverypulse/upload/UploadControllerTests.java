@@ -155,6 +155,32 @@ class UploadControllerTests {
                 .andExpect(jsonPath("$.activityByProject['" + project.getId() + "'].tasksCompleted").value(1));
     }
 
+    /** Guards the checked-in demo described in the README (sample-data/release-demo). */
+    @Test
+    void releaseDemoWeeksProduceTheDocumentedFindings() throws Exception {
+        for (int week = 1; week <= 3; week++) {
+            String body = java.nio.file.Files.readString(
+                    java.nio.file.Path.of("..", "sample-data", "release-demo", "week" + week, "ReleaseDemo.csv"));
+            upload("ReleaseDemo.csv", body, week > 1).andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.warnings").isEmpty());
+        }
+        var project = projectRepository.findByNameIgnoreCase("ReleaseDemo").orElseThrow();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/projects/" + project.getId() + "/analyze").param("analysisDate", "2026-10-19"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeRiskCount").value(7))
+                .andExpect(jsonPath("$.risksBySeverity.CRITICAL").value(1))
+                .andExpect(jsonPath("$.risksBySeverity.HIGH").value(6))
+                .andExpect(jsonPath("$.risks[0].title").value("Milestone missed: Alpha"))
+                .andExpect(jsonPath("$.risks[?(@.category == 'RECURRING_BLOCKER')].title").value("Recurring blocker: RD-2"))
+                .andExpect(jsonPath("$.risks[?(@.category == 'DEFECT_RISK')].title").value("Open high-priority defect: RD-7"))
+                .andExpect(jsonPath("$.risks[?(@.title == 'Milestone at risk: Beta')].supportingTaskIds[*]")
+                        .value(org.hamcrest.Matchers.contains("RD-2", "RD-4")))
+                .andExpect(jsonPath("$.openDefectCount").value(1))
+                .andExpect(jsonPath("$.milestones[*].status").value(org.hamcrest.Matchers.contains("MISSED", "AT_RISK", "ON_TRACK")));
+    }
+
     private org.springframework.test.web.servlet.ResultActions upload(String name, String body, boolean update)
             throws Exception {
         MockMultipartFile csv = new MockMultipartFile("file", name, "text/csv",
