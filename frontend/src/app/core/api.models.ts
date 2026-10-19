@@ -165,6 +165,32 @@ export interface JiraStatusResponse {
   blockedLabel: string;
 }
 
+export interface JobRun {
+  startedAt: string;
+  finishedAt: string;
+  manual: boolean;
+  succeeded: boolean;
+  message: string;
+}
+
+export interface JobStatus {
+  name: 'refresh' | 'weekly-report';
+  description: string;
+  cron: string;
+  scheduled: boolean;
+  nextRunAt: string | null;
+  running: boolean;
+  lastRun: JobRun | null;
+}
+
+export interface ReportSnapshotSummary {
+  id: string;
+  weekStartDate: string;
+  weekEndDate: string;
+  generatedAt: string;
+  trigger: 'SCHEDULED' | 'MANUAL';
+}
+
 export interface TaskQuery {
   page: number;
   size: number;

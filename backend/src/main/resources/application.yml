@@ -69,6 +69,11 @@ app:
     max-risks: ${AI_MAX_RISKS:10}
     max-explained-risks: ${AI_MAX_EXPLAINED_RISKS:5}
     max-text-length: ${AI_MAX_TEXT_LENGTH:500}
+  # Automated jobs, in APP_TIME_ZONE. Cron fields: second minute hour day-of-month month day-of-week.
+  schedule:
+    enabled: ${SCHEDULE_ENABLED:true}
+    refresh-cron: ${SCHEDULE_REFRESH_CRON:0 0 6 * * *}
+    weekly-report-cron: ${SCHEDULE_WEEKLY_REPORT_CRON:0 0 7 * * MON}
   # Optional read-only Jira Cloud sync. Off until all four of base URL, email, token and project keys are set.
   jira:
     base-url: ${JIRA_BASE_URL:}
@@ -101,6 +106,8 @@ app:
     enabled: false
     api-key: ""
     external-data-sharing-authorized: false
+  schedule:
+    enabled: false
   jira:
     base-url: ""
     email: ""

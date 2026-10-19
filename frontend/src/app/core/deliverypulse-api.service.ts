@@ -6,6 +6,9 @@ import {
   AiStatusResponse,
   ImportSummary,
   JiraStatusResponse,
+  JobRun,
+  JobStatus,
+  ReportSnapshotSummary,
   PortfolioRiskSummary,
   ProjectInsightsResponse,
   ProjectResponse,
@@ -75,6 +78,22 @@ export class DeliveryPulseApi {
 
   generatePortfolioInsights(): Observable<ProjectInsightsResponse> {
     return this.http.post<ProjectInsightsResponse>(`${this.baseUrl}/portfolio/insights`, null);
+  }
+
+  getJobs(): Observable<JobStatus[]> {
+    return this.http.get<JobStatus[]>(`${this.baseUrl}/jobs`);
+  }
+
+  runJob(name: JobStatus['name']): Observable<JobRun> {
+    return this.http.post<JobRun>(`${this.baseUrl}/jobs/${name}/run`, null);
+  }
+
+  getReportSnapshots(): Observable<ReportSnapshotSummary[]> {
+    return this.http.get<ReportSnapshotSummary[]>(`${this.baseUrl}/reports/weekly/snapshots`);
+  }
+
+  getReportSnapshot(id: string): Observable<WeeklyReportResponse> {
+    return this.http.get<WeeklyReportResponse>(`${this.baseUrl}/reports/weekly/snapshots/${id}`);
   }
 
   getJiraStatus(): Observable<JiraStatusResponse> {

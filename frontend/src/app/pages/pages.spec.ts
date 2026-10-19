@@ -83,7 +83,8 @@ describe('Pages against the API', () => {
   it('upload shows row-level validation errors from a 422 and says nothing was imported', () => {
     const fixture = render(UploadPage);
     http.expectOne('/api/integrations/jira/status').flush({ configured: false, baseUrl: null, projectKeys: [], blockedLabel: 'blocked' });
-    const file =new File(['Task ID,Task Name\n'], 'Broken.csv', { type: 'text/csv' });
+    http.expectOne('/api/jobs').flush([]);
+    const file = new File(['Task ID,Task Name\n'], 'Broken.csv', { type: 'text/csv' });
     fixture.componentInstance.onFileInput({ target: { files: { item: () => file } } } as unknown as Event);
     fixture.componentInstance.upload();
     http.expectOne('/api/uploads/csv').flush({
@@ -101,7 +102,20 @@ describe('Pages against the API', () => {
     const fixture = render(UploadPage);
     http.expectOne('/api/integrations/jira/status').flush({ configured: true, baseUrl: 'https://demo.atlassian.net',
       projectKeys: ['DPDEMO'], blockedLabel: 'blocked' });
+    const refreshJob = { name: 'refresh', description: 'Sync Jira and analyze', cron: '0 0 6 * * *', scheduled: true,
+      nextRunAt: '2026-10-20T06:00:00Z', running: false, lastRun: null };
+    http.expectOne('/api/jobs').flush([refreshJob]);
     fixture.detectChanges();
+    expect(text(fixture)).toContain('Daily refresh');
+    expect(text(fixture)).toContain('Not run since the backend started');
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.run-button')!.click();
+    http.expectOne('/api/jobs/refresh/run').flush({ startedAt: '', finishedAt: '2026-10-19T08:00:00Z', manual: true,
+      succeeded: true, message: 'analyzed 5 projects' });
+    http.expectOne('/api/jobs').flush([{ ...refreshJob, lastRun: { startedAt: '', finishedAt: '2026-10-19T08:00:00Z',
+      manual: true, succeeded: true, message: 'analyzed 5 projects' } }]);
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('analyzed 5 projects');
     expect(text(fixture)).toContain('Sync from Jira');
     expect(text(fixture)).toContain('Imports DPDEMO from https://demo.atlassian.net');
 
@@ -145,14 +159,23 @@ describe('Pages against the API', () => {
   it('reports page shows the weekly window and per-project totals', () => {
     const fixture = render(ReportsPage);
     const activity = { tasksAdded: 3, tasksCompleted: 2, tasksBlocked: 1, tasksUnblocked: 0, defectsOpened: 1, defectsClosed: 0 };
-    http.expectOne('/api/reports/weekly').flush({ ...portfolio([project('CRM', true)]),
-      weekStartDate: '2026-10-09', weekEndDate: '2026-10-15', activity, activityByProject: { 'id-CRM': activity } });
+    const report = { ...portfolio([project('CRM', true)]),
+      weekStartDate: '2026-10-09', weekEndDate: '2026-10-15', activity, activityByProject: { 'id-CRM': activity } };
+    http.expectOne('/api/reports/weekly').flush(report);
+    http.expectOne('/api/reports/weekly/snapshots').flush([
+      { id: 's1', weekStartDate: '2026-10-02', weekEndDate: '2026-10-08', generatedAt: '2026-10-08T07:00:00Z', trigger: 'SCHEDULED' }]);
     fixture.detectChanges();
 
     expect(text(fixture)).toContain('Oct 9, 2026 — Oct 15, 2026');
     expect(text(fixture)).toContain('CRM');
     expect(text(fixture)).toContain('Task movement recorded by imports');
     expect(text(fixture)).toContain('Newly blocked1');
+
+    fixture.componentInstance.choose('s1');
+    http.expectOne('/api/reports/weekly/snapshots/s1').flush({ ...report, weekStartDate: '2026-10-02', weekEndDate: '2026-10-08' });
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('Oct 2, 2026 — Oct 8, 2026');
+    expect(text(fixture)).toContain('Saved report');
   });
 
   it('project detail renders tasks and risk evidence returned by the API', () => {
