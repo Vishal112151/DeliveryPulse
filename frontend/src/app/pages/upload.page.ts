@@ -6,11 +6,12 @@ import {
   LucideCheck as Check,
   LucideFileSpreadsheet as FileSpreadsheet,
   LucideFileText as FileText,
+  LucideRefreshCw as RefreshCw,
   LucideUpload as Upload,
   LucideX as X,
 } from '@lucide/angular';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ImportSummary } from '../core/api.models';
+import { ImportSummary, JiraStatusResponse } from '../core/api.models';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { LucideIconCompatComponent } from '../shared/lucide-icon-compat.component';
 import { errorMessage } from '../shared/view-helpers';
@@ -43,6 +44,16 @@ import { errorMessage } from '../shared/view-helpers';
         </button></div>
       </section>
 
+      @if (jira()?.configured) {
+        <section class="surface jira-surface">
+          <div class="surface-heading"><div><div class="eyebrow">JIRA CLOUD</div><h2>Sync from Jira</h2></div><span class="limit-badge">READ ONLY</span></div>
+          <p class="jira-copy">Imports {{ jira()!.projectKeys.join(', ') }} from {{ jira()!.baseUrl }} as an update: issues are matched by key and status changes are recorded. Nothing is written to Jira.</p>
+          <div class="upload-actions"><span class="privacy-note">Blocked = status "Blocked" or label "{{ jira()!.blockedLabel }}"</span><button class="button button-primary" type="button" (click)="syncJira()" [disabled]="uploading()">
+            @if (uploading()) { <span class="spinner"></span> Syncing… } @else { <lucide-icon [img]="SyncIcon" [size]="15" /> Sync now }
+          </button></div>
+        </section>
+      }
+
       @if (summary(); as result) {
         <section class="surface result-surface" aria-live="polite">
           <div class="result-heading"><div class="success-mark" [class.rejected]="result.errors.length > 0"><lucide-icon [img]="result.errors.length > 0 ? AlertIcon : CheckIcon" [size]="17" /></div><div><div class="eyebrow">{{ result.errors.length > 0 ? 'IMPORT REJECTED' : 'IMPORT COMPLETE' }}</div><h2>{{ result.errors.length > 0 ? 'Validation summary' : 'Import summary' }}</h2></div></div>
@@ -65,9 +76,9 @@ import { errorMessage } from '../shared/view-helpers';
     .selected-file { display:flex; width:min(440px,90%); align-items:center; gap:12px; padding:12px; border:1px solid #e5e9e3; border-radius:6px; background:#fff; }.file-icon { flex:none; width:36px; height:36px; border-radius:6px; }.selected-meta { display:grid; min-width:0; gap:4px; flex:1; }.selected-meta strong { overflow:hidden; color:#33443a; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }.selected-meta span { color:#89938c; font-size:10px; }.upload-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:16px; }.privacy-note { color:#89938c; font-size:9px; }.inline-error { display:flex; gap:7px; align-items:flex-start; margin-top:12px; color:#ad5142; font-size:10px; }.api-error { padding:10px; border-radius:5px; background:#fff4f0; }
     .success-mark { display:grid; width:34px; height:34px; place-items:center; border-radius:50%; color:#4b7944; background:#edf5e8; }.success-mark.rejected { color:#b34f40; background:#faeae6; }.result-heading { justify-content:flex-start; }.result-metrics { display:grid; grid-template-columns:repeat(3,1fr); margin:20px 0 16px; padding:13px 0; border-block:1px solid #edf0ec; }.result-metrics div { display:grid; gap:4px; }.result-metrics strong { color:#304137; font-size:22px; }.result-metrics span { color:#8a948c; font-size:9px; }.result-section { padding:10px 0; border-bottom:1px solid #edf0ec; }.result-section h3,.issue-list h3 { margin:0 0 9px; color:#53645a; font-size:10px; }.chip-list { display:flex; flex-wrap:wrap; gap:6px; }.name-chip,.muted-chip { padding:5px 7px; border-radius:4px; color:#52704a; background:#eff5e9; font-size:9px; }.muted-chip { color:#77827a; background:#f0f2ef; }.issue-list { margin-top:14px; }.issue-list p { margin:7px 0 0; color:#7b766b; font-size:10px; line-height:1.45; }.issue-list p strong { color:#7a6240; }.error-list p strong { color:#aa5545; }.warning-list h3 { color:#98713c; }.error-list h3 { color:#ad5142; }
     .format-strip { display:grid; grid-template-columns:38px minmax(0,1fr) 38px minmax(0,1fr); align-items:center; gap:12px; margin-top:15px; padding:14px 17px; border:1px solid #e5e9e3; border-radius:7px; background:#fff; }.format-icon { display:grid; width:34px; height:34px; place-items:center; border-radius:6px; }.format-icon.excel { color:#46754a; background:#eef4e9; }.format-icon.csv { color:#90733a; background:#f6f1df; }.format-strip strong,.format-strip span { display:block; }.format-strip strong { margin-bottom:4px; color:#405047; font-size:10px; }.format-strip span { color:#89938c; font-size:9px; line-height:1.45; }
-    .update-option { display:flex; gap:9px; align-items:flex-start; margin-top:14px; color:#77827a; font-size:10px; line-height:1.45; cursor:pointer; }.update-option input { margin-top:2px; accent-color:#6d8a58; }.update-option strong { display:block; color:#3c5146; font-size:11px; }.notice-line { margin-bottom:6px; padding:9px 10px; border-radius:5px; color:#526f49; background:#f6faef; font-size:10px; }
+    .jira-surface { grid-column:1; padding:20px; }.result-surface { grid-column:2; grid-row:1 / span 2; }.jira-copy { margin:12px 0 0; color:#77827a; font-size:10px; line-height:1.5; }.update-option { display:flex; gap:9px; align-items:flex-start; margin-top:14px; color:#77827a; font-size:10px; line-height:1.45; cursor:pointer; }.update-option input { margin-top:2px; accent-color:#6d8a58; }.update-option strong { display:block; color:#3c5146; font-size:11px; }.notice-line { margin-bottom:6px; padding:9px 10px; border-radius:5px; color:#526f49; background:#f6faef; font-size:10px; }
     .spinner { width:13px; height:13px; border:2px solid #dce5d8; border-top-color:#6d8a58; border-radius:50%; animation:spin .7s linear infinite; }@keyframes spin { to { transform:rotate(360deg); } }
-    @media(max-width:900px){.upload-layout{grid-template-columns:1fr;}}@media(max-width:600px){.upload-surface,.result-surface{padding:15px;}.dropzone{min-height:235px;}.upload-actions{align-items:flex-start;flex-direction:column;}.format-strip{grid-template-columns:34px minmax(0,1fr);}.format-icon.csv{grid-column:1;}.format-strip>div:nth-of-type(4){grid-column:2;}}
+    @media(max-width:900px){.upload-layout{grid-template-columns:1fr;}.jira-surface,.result-surface{grid-column:auto;grid-row:auto;}}@media(max-width:600px){.upload-surface,.result-surface{padding:15px;}.dropzone{min-height:235px;}.upload-actions{align-items:flex-start;flex-direction:column;}.format-strip{grid-template-columns:34px minmax(0,1fr);}.format-icon.csv{grid-column:1;}.format-strip>div:nth-of-type(4){grid-column:2;}}
   `],
 })
 export class UploadPage {
@@ -81,6 +92,7 @@ export class UploadPage {
   readonly uploadError = signal('');
   readonly summary = signal<ImportSummary | null>(null);
   readonly updateExisting = signal(false);
+  readonly jira = signal<JiraStatusResponse | null>(null);
   /** Whether the shown summary came from an update upload. */
   readonly updatedImport = signal(false);
   protected readonly UploadIcon = Upload;
@@ -89,6 +101,24 @@ export class UploadPage {
   protected readonly AlertIcon = AlertCircle;
   protected readonly CheckIcon = Check;
   protected readonly CloseIcon = X;
+  protected readonly SyncIcon = RefreshCw;
+
+  constructor() {
+    // Jira is optional; if the status call fails the panel just stays hidden.
+    this.api.getJiraStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (status) => this.jira.set(status),
+      error: () => this.jira.set(null),
+    });
+  }
+
+  syncJira(): void {
+    if (this.uploading()) return;
+    this.uploading.set(true); this.uploadError.set(''); this.summary.set(null); this.updatedImport.set(true);
+    this.api.syncJira().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => { this.summary.set(result); this.uploading.set(false); },
+      error: (error: unknown) => { this.uploadError.set(errorMessage(error)); this.uploading.set(false); },
+    });
+  }
 
   onDragOver(event: DragEvent): void { event.preventDefault(); this.dragging.set(true); }
   onDrop(event: DragEvent): void {

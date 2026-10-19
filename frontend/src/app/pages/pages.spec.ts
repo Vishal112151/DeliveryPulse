@@ -82,7 +82,8 @@ describe('Pages against the API', () => {
 
   it('upload shows row-level validation errors from a 422 and says nothing was imported', () => {
     const fixture = render(UploadPage);
-    const file = new File(['Task ID,Task Name\n'], 'Broken.csv', { type: 'text/csv' });
+    http.expectOne('/api/integrations/jira/status').flush({ configured: false, baseUrl: null, projectKeys: [], blockedLabel: 'blocked' });
+    const file =new File(['Task ID,Task Name\n'], 'Broken.csv', { type: 'text/csv' });
     fixture.componentInstance.onFileInput({ target: { files: { item: () => file } } } as unknown as Event);
     fixture.componentInstance.upload();
     http.expectOne('/api/uploads/csv').flush({
@@ -94,6 +95,23 @@ describe('Pages against the API', () => {
     expect(text(fixture)).toContain('IMPORT REJECTED');
     expect(text(fixture)).toContain('Broken · row 2 · Priority');
     expect(text(fixture)).toContain('No records were imported');
+  });
+
+  it('upload offers Jira sync when configured and shows the sync summary', () => {
+    const fixture = render(UploadPage);
+    http.expectOne('/api/integrations/jira/status').flush({ configured: true, baseUrl: 'https://demo.atlassian.net',
+      projectKeys: ['DPDEMO'], blockedLabel: 'blocked' });
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('Sync from Jira');
+    expect(text(fixture)).toContain('Imports DPDEMO from https://demo.atlassian.net');
+
+    fixture.componentInstance.syncJira();
+    http.expectOne('/api/integrations/jira/sync').flush({ projectCount: 1, importedTaskCount: 7,
+      importedProjects: ['DeliveryPulse Demo'], skippedWorksheets: [], warnings: [], errors: [] });
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('IMPORT COMPLETE');
+    expect(text(fixture)).toContain('DeliveryPulse Demo');
+    expect(text(fixture)).toContain('Run analysis on them');
   });
 
   it('projects page shows the empty state with an upload link', () => {

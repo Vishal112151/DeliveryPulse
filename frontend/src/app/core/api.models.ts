@@ -158,6 +158,13 @@ export interface ImportSummary {
   errors: ImportIssue[];
 }
 
+export interface JiraStatusResponse {
+  configured: boolean;
+  baseUrl: string | null;
+  projectKeys: string[];
+  blockedLabel: string;
+}
+
 export interface TaskQuery {
   page: number;
   size: number;

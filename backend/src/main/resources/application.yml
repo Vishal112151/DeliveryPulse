@@ -67,6 +67,15 @@ app:
     max-risks: ${AI_MAX_RISKS:10}
     max-explained-risks: ${AI_MAX_EXPLAINED_RISKS:5}
     max-text-length: ${AI_MAX_TEXT_LENGTH:500}
+  # Optional read-only Jira Cloud sync. Off until all four of base URL, email, token and project keys are set.
+  jira:
+    base-url: ${JIRA_BASE_URL:}
+    email: ${JIRA_EMAIL:}
+    api-token: ${JIRA_API_TOKEN:}
+    project-keys: ${JIRA_PROJECT_KEYS:}
+    blocked-label: ${JIRA_BLOCKED_LABEL:blocked}
+    timeout: ${JIRA_TIMEOUT:30s}
+    max-issues: ${JIRA_MAX_ISSUES:5000}
 
 ---
 spring:
@@ -90,3 +99,8 @@ app:
     enabled: false
     api-key: ""
     external-data-sharing-authorized: false
+  jira:
+    base-url: ""
+    email: ""
+    api-token: ""
+    project-keys: ""
