@@ -39,7 +39,7 @@ public class AuthController {
             description = "Send the token as 'Authorization: Bearer <token>'. Five wrong passwords lock the username for five minutes.")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         AuthService.LoginResult result = authService.login(request.username(), request.password());
-        return new LoginResponse(result.token(), result.expiresAt(), UserService.UserResponse.of(result.user()));
+        return new LoginResponse(result.token(), result.expiresAt(), result.user());
     }
 
     @PostMapping("/api/auth/logout")

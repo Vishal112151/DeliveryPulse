@@ -73,7 +73,8 @@ public class AuthService {
         Instant expiresAt = now.plus(sessionLength);
         sessions.save(new UserSession(hash(token), user.get(), now, expiresAt));
         logger.info("Signed in: username={}", key);
-        return new LoginResult(token, expiresAt, user.get());
+        // Built here, inside the transaction, because it reads the user's lazily loaded projects.
+        return new LoginResult(token, expiresAt, UserService.UserResponse.of(user.get()));
     }
 
     /** The active user for a bearer token, or empty if the token is unknown, expired or the user is disabled. */
@@ -118,7 +119,7 @@ public class AuthService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    public record LoginResult(String token, Instant expiresAt, AppUser user) {
+    public record LoginResult(String token, Instant expiresAt, UserService.UserResponse user) {
     }
 
     private record Failures(int count, Instant lockedUntil) {
