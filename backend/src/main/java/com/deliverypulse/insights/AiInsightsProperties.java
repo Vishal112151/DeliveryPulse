@@ -37,7 +37,8 @@ public record AiInsightsProperties(
         maxTextLength = maxTextLength <= 0 ? 500 : maxTextLength;
     }
 
-    static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+    /** Google's alias for its current Flash model; pinned versions get retired for new accounts. */
+    static final String DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
 
     private static String defaultModel(String provider) {
         return provider.equalsIgnoreCase("gemini") ? DEFAULT_GEMINI_MODEL : "claude-opus-5-5";

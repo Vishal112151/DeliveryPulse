@@ -347,7 +347,7 @@ AI runs only when **all three** of the switch, a key and the data-sharing author
 AI_INSIGHTS_ENABLED=true
 AI_PROVIDER=gemini
 AI_API_KEY=<your Gemini API key from https://aistudio.google.com/apikey>
-AI_MODEL=gemini-2.5-flash
+AI_MODEL=gemini-flash-latest   # Google's alias for the current Flash model
 AI_EXTERNAL_DATA_SHARING_AUTHORIZED=true   # confirms you may send this project data to Google
 ```
 
@@ -361,7 +361,7 @@ Restart the backend, then check `GET /api/ai/status`: `"available": true` means 
 | `AI_PROVIDER` | `anthropic` | `gemini` or `anthropic` |
 | `AI_API_KEY` | empty | Provider credential (never logged or returned). `ANTHROPIC_API_KEY` is read when this is empty |
 | `AI_EXTERNAL_DATA_SHARING_AUTHORIZED` | `false` | Explicit authorization to send project data to the external provider |
-| `AI_MODEL` | provider default | `gemini-2.5-flash` for Gemini, `claude-opus-5-5` for Anthropic |
+| `AI_MODEL` | provider default | `gemini-flash-latest` for Gemini (an alias that follows Google's current Flash model; pin a version such as `gemini-3.8-flash` for repeatable results), `claude-opus-5-5` for Anthropic |
 | `AI_TIMEOUT` | `60s` | Per-request timeout |
 | `AI_MAX_RETRIES` | `2` | Retries for 429/5xx errors (Gemini: 429/500/503) |
 | `AI_MAX_OUTPUT_TOKENS` | `16000` | Output cap per request |

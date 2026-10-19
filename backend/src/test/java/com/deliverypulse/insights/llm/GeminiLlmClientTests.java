@@ -161,7 +161,7 @@ class GeminiLlmClientTests {
         AiInsightsProperties properties = properties("", Duration.ofSeconds(1), 0, null);
         GeminiLlmClient client = new GeminiLlmClient(properties);
 
-        assertThat(properties.model()).isEqualTo("gemini-2.5-flash");
+        assertThat(properties.model()).isEqualTo("gemini-flash-latest");
         assertThat(client.isConfigured()).isFalse();
         assertThatThrownBy(() -> client.generate(PROMPT, Answer.class))
                 .isInstanceOfSatisfying(LlmException.class,

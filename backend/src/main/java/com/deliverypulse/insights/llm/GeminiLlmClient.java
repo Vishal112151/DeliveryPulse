@@ -166,7 +166,8 @@ public class GeminiLlmClient implements LlmClient {
         }
         if (status == 404) {
             return new LlmException(LlmFailure.UNAVAILABLE,
-                    "The AI provider does not know this model. Check AI_MODEL (for example gemini-2.5-flash).");
+                    "The AI provider does not offer this model (it may have been retired). "
+                            + "Check AI_MODEL, for example gemini-flash-latest.");
         }
         return new LlmException(LlmFailure.UNAVAILABLE, "The AI provider rejected the request (HTTP " + status + ").");
     }
