@@ -1,0 +1,7 @@
+Task ID,Task Name,Team/Module,Assignee,Priority,Status,Start Date,Due Date,Blocker / Dependency,Type,Milestone,Milestone Date
+RD-1,Checkout API,Backend,Asha,High,In Progress,2026-10-01,2026-10-15,,Story,Alpha,2026-10-16
+RD-2,Payment provider setup,Backend,Ravi,High,Blocked,2026-10-05,2026-10-25,Waiting for vendor contract,Task,Beta,2026-10-30
+RD-3,Login crash on Android,Mobile,Meera,Critical,In Progress,2026-10-10,2026-10-24,,Bug,Beta,
+RD-4,Order history page,Web,Liam,Medium,Not Started,2026-10-20,2026-11-05,,Story,Beta,
+RD-5,Load testing,QA,Sara,Medium,Not Started,2026-11-10,2026-12-01,RD-2,Task,GA,2026-12-15
+RD-6,Release notes,Docs,Sara,Low,Not Started,2026-12-01,2026-12-10,,Task,GA,

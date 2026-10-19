@@ -76,10 +76,12 @@ export class DeliveryPulseApi {
     return this.http.post<ProjectInsightsResponse>(`${this.baseUrl}/portfolio/insights`, null);
   }
 
-  upload(file: File): Observable<ImportSummary> {
+  /** With updateExisting, projects that already exist are updated by Task ID instead of rejected. */
+  upload(file: File, updateExisting = false): Observable<ImportSummary> {
     const body = new FormData();
     body.append('file', file, file.name);
     const endpoint = /\.csv$/i.test(file.name) ? 'csv' : 'excel';
-    return this.http.post<ImportSummary>(`${this.baseUrl}/uploads/${endpoint}`, body);
+    const params = updateExisting ? new HttpParams().set('update', true) : undefined;
+    return this.http.post<ImportSummary>(`${this.baseUrl}/uploads/${endpoint}`, body, { params });
   }
 }

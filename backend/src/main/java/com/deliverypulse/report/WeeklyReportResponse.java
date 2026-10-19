@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import com.deliverypulse.risk.ProjectRiskSummary;
 import com.deliverypulse.shared.domain.RiskCategory;
@@ -23,11 +24,15 @@ public record WeeklyReportResponse(
         int activeRiskCount,
         Map<RiskSeverity, Long> risksBySeverity,
         Map<RiskCategory, Long> risksByCategory,
-        List<ProjectRiskSummary> projects) {
+        List<ProjectRiskSummary> projects,
+        int openDefectCount,
+        WeeklyActivity activity,
+        Map<UUID, WeeklyActivity> activityByProject) {
 
     public WeeklyReportResponse {
         risksBySeverity = Map.copyOf(risksBySeverity);
         risksByCategory = Map.copyOf(risksByCategory);
         projects = List.copyOf(projects);
+        activityByProject = Map.copyOf(activityByProject);
     }
 }

@@ -162,7 +162,10 @@ public class InsightContextBuilder {
                 task.getStatus() != TaskStatus.DONE && task.getDueDate() != null
                         && analysisDate != null && task.getDueDate().isBefore(analysisDate),
                 limit(task.getBlockerText()),
-                properties.includeTaskDescriptions() ? limit(task.getDescription()) : null);
+                properties.includeTaskDescriptions() ? limit(task.getDescription()) : null,
+                task.getIssueType().name(),
+                limit(task.getMilestone()),
+                task.getMilestoneDate());
     }
 
     private static Metrics metrics(ProjectRiskSummary summary) {
@@ -229,7 +232,7 @@ public class InsightContextBuilder {
 
     public record TaskRecord(String taskId, String name, String teamOrModule, String assignee,
             String priority, String status, LocalDate startDate, LocalDate dueDate, boolean overdue,
-            String blockerText, String description) {
+            String blockerText, String description, String type, String milestone, LocalDate milestoneDate) {
     }
 
     public record RiskRecord(String ref, String category, String severity, String certainty, String title,

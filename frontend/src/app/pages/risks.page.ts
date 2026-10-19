@@ -65,7 +65,7 @@ export class RisksPage {
   protected readonly AlertIcon = TriangleAlert;
   protected readonly titleCase = titleCase;
   protected readonly severities: RiskSeverity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
-  protected readonly categories: RiskCategory[] = ['OVERDUE_TASK', 'BLOCKED_TASK', 'CRITICAL_TASK_AT_RISK', 'DEPENDENCY_RISK', 'DELIVERY_RISK', 'DATA_QUALITY_WARNING'];
+  protected readonly categories: RiskCategory[] = ['OVERDUE_TASK', 'BLOCKED_TASK', 'CRITICAL_TASK_AT_RISK', 'DEPENDENCY_RISK', 'DELIVERY_RISK', 'DEFECT_RISK', 'RECURRING_BLOCKER', 'DATA_QUALITY_WARNING'];
 
   constructor() { this.refresh(); }
   refresh(): void {

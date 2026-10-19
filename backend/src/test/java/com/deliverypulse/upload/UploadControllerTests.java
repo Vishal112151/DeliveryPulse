@@ -41,6 +41,9 @@ class UploadControllerTests {
     @Autowired
     private jakarta.persistence.EntityManager entityManager;
 
+    @Autowired
+    private com.deliverypulse.task.TaskStatusChangeRepository statusChangeRepository;
+
     @Test
     void importsFourProjectsAndTwentyFiveTasksAndRejectsRepeatUpload() throws Exception {
         MockMultipartFile workbook = new MockMultipartFile("file", "portfolio.xlsx",
@@ -107,6 +110,82 @@ class UploadControllerTests {
         // The test transaction never commits, so flush to hit the database constraints for real.
         entityManager.flush();
         org.assertj.core.api.Assertions.assertThat(dependencyRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void updateReimportChangesTasksInPlaceRecordsHistoryAndFeedsRecurringBlockerAndWeeklyActivity() throws Exception {
+        String header = "Task ID,Task Name,Priority,Status,Type,Milestone,Blocker / Dependency\n";
+        upload("Sync.csv", header + "S-1,Payments,High,Blocked,,Beta,\nS-2,Login bug,High,In Progress,Bug,Beta,\n"
+                + "S-3,Docs,Low,Not Started,,,S-1\n", false).andExpect(status().isCreated());
+        upload("Sync.csv", header + "S-1,Payments,High,Blocked,,Beta,\n", false)
+                .andExpect(status().isConflict());
+
+        upload("Sync.csv", header + "S-1,Payments,High,In Progress,,Beta,\nS-2,Login bug,High,Done,Bug,Beta,\n"
+                + "S-4,New work,Medium,Not Started,,,S-1\n", true)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.importedTaskCount").value(3))
+                .andExpect(jsonPath("$.warnings[0].code").value("TASK_NOT_IN_UPLOAD"));
+        upload("Sync.csv", header + "S-1,Payments,High,Blocked,,Beta,\n", true).andExpect(status().isCreated());
+        entityManager.flush();
+
+        var project = projectRepository.findByNameIgnoreCase("Sync").orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(taskRepository.findAllByProjectId(project.getId()))
+                .extracting(com.deliverypulse.task.Task::getTaskKey).containsExactlyInAnyOrder("S-1", "S-2", "S-3", "S-4");
+        // S-3's dependency is gone (not in the last files); S-4 -> S-1 was replaced by the final upload too.
+        org.assertj.core.api.Assertions.assertThat(dependencyRepository.findAllByDependentTaskProjectId(project.getId()))
+                .isEmpty();
+        // 4 first appearances + S-1 Blocked->In Progress->Blocked + S-2 In Progress->Done.
+        org.assertj.core.api.Assertions.assertThat(statusChangeRepository.findAllByProjectId(project.getId())).hasSize(7);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/projects/" + project.getId() + "/analyze"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.risks[?(@.category == 'RECURRING_BLOCKER')].supportingTaskIds[0]").value("S-1"))
+                .andExpect(jsonPath("$.openDefectCount").value(0))
+                .andExpect(jsonPath("$.milestones[0].name").value("Beta"))
+                .andExpect(jsonPath("$.milestones[0].status").value("NO_DATE"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/reports/weekly"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activity.tasksAdded").value(4))
+                .andExpect(jsonPath("$.activity.tasksBlocked").value(2))
+                .andExpect(jsonPath("$.activity.tasksUnblocked").value(1))
+                .andExpect(jsonPath("$.activity.defectsOpened").value(1))
+                .andExpect(jsonPath("$.activity.defectsClosed").value(1))
+                .andExpect(jsonPath("$.activityByProject['" + project.getId() + "'].tasksCompleted").value(1));
+    }
+
+    /** Guards the checked-in demo described in the README (sample-data/release-demo). */
+    @Test
+    void releaseDemoWeeksProduceTheDocumentedFindings() throws Exception {
+        for (int week = 1; week <= 3; week++) {
+            String body = java.nio.file.Files.readString(
+                    java.nio.file.Path.of("..", "sample-data", "release-demo", "week" + week, "ReleaseDemo.csv"));
+            upload("ReleaseDemo.csv", body, week > 1).andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.warnings").isEmpty());
+        }
+        var project = projectRepository.findByNameIgnoreCase("ReleaseDemo").orElseThrow();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/projects/" + project.getId() + "/analyze").param("analysisDate", "2026-10-19"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeRiskCount").value(7))
+                .andExpect(jsonPath("$.risksBySeverity.CRITICAL").value(1))
+                .andExpect(jsonPath("$.risksBySeverity.HIGH").value(6))
+                .andExpect(jsonPath("$.risks[0].title").value("Milestone missed: Alpha"))
+                .andExpect(jsonPath("$.risks[?(@.category == 'RECURRING_BLOCKER')].title").value("Recurring blocker: RD-2"))
+                .andExpect(jsonPath("$.risks[?(@.category == 'DEFECT_RISK')].title").value("Open high-priority defect: RD-7"))
+                .andExpect(jsonPath("$.risks[?(@.title == 'Milestone at risk: Beta')].supportingTaskIds[*]")
+                        .value(org.hamcrest.Matchers.contains("RD-2", "RD-4")))
+                .andExpect(jsonPath("$.openDefectCount").value(1))
+                .andExpect(jsonPath("$.milestones[*].status").value(org.hamcrest.Matchers.contains("MISSED", "AT_RISK", "ON_TRACK")));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions upload(String name, String body, boolean update)
+            throws Exception {
+        MockMultipartFile csv = new MockMultipartFile("file", name, "text/csv",
+                body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return mockMvc.perform(multipart("/api/uploads/csv").file(csv).param("update", String.valueOf(update)));
     }
 
         private long projectTaskCount(String projectName) {

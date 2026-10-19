@@ -62,7 +62,7 @@ final class InsightTestData {
         bySeverity.put(RiskSeverity.MEDIUM, 1L);
         bySeverity.put(RiskSeverity.LOW, 0L);
         return new ProjectRiskSummary(PROJECT.getId(), "Atlas", ANALYSIS_DATE, analyzedAt, 4, 1, 3, 1, 1, 3,
-                bySeverity, new EnumMap<>(RiskCategory.class), risks);
+                bySeverity, new EnumMap<>(RiskCategory.class), risks, 0, List.of());
     }
 
     static AiInsightsProperties properties(boolean enabled, String apiKey, boolean authorized) {

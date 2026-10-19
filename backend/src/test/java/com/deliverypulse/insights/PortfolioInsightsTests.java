@@ -203,18 +203,18 @@ class PortfolioInsightsTests {
                 projects.stream().mapToInt(ProjectRiskSummary::incompleteTaskCount).sum(),
                 projects.stream().mapToInt(ProjectRiskSummary::overdueTaskCount).sum(),
                 projects.stream().mapToInt(ProjectRiskSummary::blockedTaskCount).sum(), risks,
-                severities(1, 2, 1), new EnumMap<>(RiskCategory.class), projects);
+                severities(1, 2, 1), new EnumMap<>(RiskCategory.class), projects, 0);
     }
 
     private static ProjectRiskSummary borealis() {
         return new ProjectRiskSummary(BOREALIS.getId(), "Borealis", InsightTestData.ANALYSIS_DATE,
                 InsightTestData.ANALYZED_AT, 2, 1, 1, 0, 1, 1, severities(0, 1, 0), new EnumMap<>(RiskCategory.class),
-                List.of(BOREALIS_BLOCKED));
+                List.of(BOREALIS_BLOCKED), 0, List.of());
     }
 
     private static ProjectRiskSummary cobalt() {
         return new ProjectRiskSummary(COBALT.getId(), "Cobalt", InsightTestData.ANALYSIS_DATE, null, 0, 0, 0, 0, 0,
-                0, severities(0, 0, 0), new EnumMap<>(RiskCategory.class), List.of());
+                0, severities(0, 0, 0), new EnumMap<>(RiskCategory.class), List.of(), 0, List.of());
     }
 
     private static Map<RiskSeverity, Long> severities(long critical, long high, long medium) {

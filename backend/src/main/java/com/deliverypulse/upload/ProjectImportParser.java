@@ -34,6 +34,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Component;
 
+import com.deliverypulse.shared.domain.IssueType;
 import com.deliverypulse.shared.domain.Priority;
 import com.deliverypulse.shared.domain.TaskStatus;
 
@@ -287,8 +288,27 @@ public class ProjectImportParser {
             }
             LocalDate startDate = parseDate(valueCell(row, columns, Column.START_DATE), table.name(), row.number(), "Start Date", errors);
             LocalDate dueDate = parseDate(valueCell(row, columns, Column.DUE_DATE), table.name(), row.number(), "Due Date", errors);
+            LocalDate milestoneDate = parseDate(valueCell(row, columns, Column.MILESTONE_DATE), table.name(), row.number(),
+                    "Milestone Date", errors);
             if (dateHasError(errors, table.name(), row.number(), "Start Date")
-                    || dateHasError(errors, table.name(), row.number(), "Due Date")) {
+                    || dateHasError(errors, table.name(), row.number(), "Due Date")
+                    || dateHasError(errors, table.name(), row.number(), "Milestone Date")) {
+                valid = false;
+            }
+            String typeText = value(row, columns, Column.TYPE).trim();
+            IssueType issueType = typeText.isBlank() ? IssueType.TASK : parseIssueType(typeText);
+            if (issueType == null) {
+                errors.add(issue(table.name(), row.number(), "Type", "INVALID_TYPE", "Type must be Task, Story, Bug, or Defect."));
+                valid = false;
+            }
+            String milestone = value(row, columns, Column.MILESTONE).trim();
+            if (milestone.length() > 160) {
+                errors.add(issue(table.name(), row.number(), "Milestone", "FIELD_TOO_LONG", "Milestone exceeds 160 characters."));
+                valid = false;
+            }
+            if (milestone.isBlank() && milestoneDate != null) {
+                errors.add(issue(table.name(), row.number(), "Milestone Date", "MILESTONE_DATE_WITHOUT_MILESTONE",
+                        "Milestone Date needs a Milestone name on the same row."));
                 valid = false;
             }
             if (!valid) {
@@ -298,7 +318,7 @@ public class ProjectImportParser {
             ImportedTask task = new ImportedTask(row.number(), taskKey, taskName,
                     optional(teamOrModule), optional(assignee),
                     priority, status, startDate, dueDate, preserveOptional(blockerText),
-                    optional(value(row, columns, Column.DESCRIPTION)));
+                    optional(value(row, columns, Column.DESCRIPTION)), issueType, optional(milestone), milestoneDate);
             tasks.add(task);
             byKey.put(normalizedKey, task);
             rawBlockers.put(normalizedKey, blockerText);
@@ -331,6 +351,7 @@ public class ProjectImportParser {
                 }
             }
         }
+        tasks = withMilestoneDates(tasks, table.name(), errors);
         if (!tasks.isEmpty()) {
             projects.add(new ImportProject(projectName, tasks, dependencies));
         } else if (table.rows().isEmpty()) {
@@ -361,6 +382,29 @@ public class ProjectImportParser {
             }
         }
         return columns;
+    }
+
+    /**
+     * A milestone's date may be given on any one of its rows. Every row of that milestone gets the date;
+     * two different dates for the same milestone is an error.
+     */
+    private List<ImportedTask> withMilestoneDates(List<ImportedTask> tasks, String sheet, List<ImportIssue> errors) {
+        Map<String, LocalDate> dates = new HashMap<>();
+        for (ImportedTask task : tasks) {
+            if (task.milestone() == null || task.milestoneDate() == null) {
+                continue;
+            }
+            String key = task.milestone().toLowerCase(Locale.ROOT);
+            LocalDate known = dates.putIfAbsent(key, task.milestoneDate());
+            if (known != null && !known.equals(task.milestoneDate())) {
+                errors.add(issue(sheet, task.row(), "Milestone Date", "CONFLICTING_MILESTONE_DATE",
+                        "Milestone '" + task.milestone() + "' already has date " + known + " on another row."));
+            }
+        }
+        return tasks.stream().map(task -> task.milestone() == null ? task : new ImportedTask(task.row(),
+                task.taskKey(), task.taskName(), task.teamOrModule(), task.assignee(), task.priority(), task.status(),
+                task.startDate(), task.dueDate(), task.blockerText(), task.description(), task.issueType(),
+                task.milestone(), dates.get(task.milestone().toLowerCase(Locale.ROOT)))).toList();
     }
 
     private LocalDate parseDate(CellValue cell, String sheet, int row, String column, List<ImportIssue> errors) {
@@ -409,6 +453,14 @@ public class ProjectImportParser {
             case "inprogress", "inwork", "active" -> TaskStatus.IN_PROGRESS;
             case "blocked", "onhold" -> TaskStatus.BLOCKED;
             case "done", "complete", "completed", "closed" -> TaskStatus.DONE;
+            default -> null;
+        };
+    }
+
+    private IssueType parseIssueType(String text) {
+        return switch (normalizeHeader(text)) {
+            case "task", "story", "feature", "subtask", "epic" -> IssueType.TASK;
+            case "bug", "defect" -> IssueType.DEFECT;
             default -> null;
         };
     }
@@ -491,7 +543,10 @@ public class ProjectImportParser {
         START_DATE("Start Date", "startdate"),
         DUE_DATE("Due Date", "duedate", "deadline"),
         BLOCKER_DEPENDENCY("Blocker / Dependency", "blockerdependency", "blocker", "dependency"),
-        DESCRIPTION("Description", "description", "details");
+        DESCRIPTION("Description", "description", "details"),
+        TYPE("Type", "type", "issuetype", "worktype"),
+        MILESTONE("Milestone", "milestone", "release", "fixversion"),
+        MILESTONE_DATE("Milestone Date", "milestonedate", "releasedate", "targetdate");
 
         private final String header;
         private final Set<String> aliases;

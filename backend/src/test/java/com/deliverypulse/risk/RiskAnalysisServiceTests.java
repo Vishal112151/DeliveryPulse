@@ -28,6 +28,7 @@ import com.deliverypulse.shared.domain.RiskStatus;
 import com.deliverypulse.shared.domain.TaskStatus;
 import com.deliverypulse.task.Task;
 import com.deliverypulse.task.TaskRepository;
+import com.deliverypulse.task.TaskStatusChangeRepository;
 
 @ExtendWith(MockitoExtension.class)
 class RiskAnalysisServiceTests {
@@ -43,6 +44,9 @@ class RiskAnalysisServiceTests {
 
     @Mock
     private RiskRepository riskRepository;
+
+    @Mock
+    private TaskStatusChangeRepository statusChangeRepository;
 
     private final List<Risk> storedRisks = new ArrayList<>();
     private Project project;
@@ -68,7 +72,7 @@ class RiskAnalysisServiceTests {
         });
 
         service = new RiskAnalysisService(projectRepository, taskRepository, dependencyRepository,
-                riskRepository, List.of(new OverdueTaskRule(), new BlockedTaskRule(),
+                riskRepository, statusChangeRepository, List.of(new OverdueTaskRule(), new BlockedTaskRule(),
                         new CriticalTaskAtRiskRule(), new DependencyRiskRule(), new DataQualityRule()),
                 Clock.fixed(Instant.parse("2026-10-15T00:00:00Z"), ZoneOffset.UTC));
     }

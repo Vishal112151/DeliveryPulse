@@ -22,11 +22,14 @@ public record ProjectRiskSummary(
         int activeRiskCount,
         Map<RiskSeverity, Long> risksBySeverity,
         Map<RiskCategory, Long> risksByCategory,
-        List<RiskResponse> risks) {
+        List<RiskResponse> risks,
+        int openDefectCount,
+        List<MilestoneSummary> milestones) {
 
     public ProjectRiskSummary {
         risksBySeverity = Map.copyOf(risksBySeverity);
         risksByCategory = Map.copyOf(risksByCategory);
         risks = List.copyOf(risks);
+        milestones = List.copyOf(milestones);
     }
 }

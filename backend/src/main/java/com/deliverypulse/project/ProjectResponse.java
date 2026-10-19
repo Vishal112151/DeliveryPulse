@@ -21,7 +21,8 @@ public record ProjectResponse(
         int incompleteTaskCount,
         int overdueTaskCount,
         int blockedTaskCount,
-        Map<RiskSeverity, Long> risksBySeverity) {
+        Map<RiskSeverity, Long> risksBySeverity,
+        int openDefectCount) {
 
     public ProjectResponse {
         risksBySeverity = Map.copyOf(risksBySeverity);

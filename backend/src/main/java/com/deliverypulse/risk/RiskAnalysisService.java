@@ -28,6 +28,7 @@ import com.deliverypulse.shared.domain.RiskSeverity;
 import com.deliverypulse.shared.domain.RiskStatus;
 import com.deliverypulse.task.Task;
 import com.deliverypulse.task.TaskRepository;
+import com.deliverypulse.task.TaskStatusChangeRepository;
 import com.deliverypulse.shared.domain.TaskStatus;
 
 @Service
@@ -37,16 +38,18 @@ public class RiskAnalysisService {
     private final TaskRepository taskRepository;
     private final DependencyRepository dependencyRepository;
     private final RiskRepository riskRepository;
+    private final TaskStatusChangeRepository statusChangeRepository;
     private final List<RiskRule> rules;
     private final Clock clock;
 
     public RiskAnalysisService(ProjectRepository projectRepository, TaskRepository taskRepository,
             DependencyRepository dependencyRepository, RiskRepository riskRepository,
-            List<RiskRule> rules, Clock clock) {
+            TaskStatusChangeRepository statusChangeRepository, List<RiskRule> rules, Clock clock) {
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
         this.dependencyRepository = dependencyRepository;
         this.riskRepository = riskRepository;
+        this.statusChangeRepository = statusChangeRepository;
         this.rules = List.copyOf(rules);
         this.clock = clock;
     }
@@ -59,7 +62,8 @@ public class RiskAnalysisService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
         List<Task> tasks = taskRepository.findAllByProjectId(projectId);
         var dependencies = dependencyRepository.findAllByDependentTaskProjectId(projectId);
-        AnalysisContext context = new AnalysisContext(project, analysisDate, tasks, dependencies);
+        AnalysisContext context = new AnalysisContext(project, analysisDate, tasks, dependencies,
+                statusChangeRepository.findAllByProjectId(projectId));
         List<RiskFinding> findings = rules.stream()
                 .flatMap(rule -> rule.evaluate(context).stream())
                 .toList();
@@ -148,9 +152,10 @@ public class RiskAnalysisService {
         int incompleteTaskCount = summaries.stream().mapToInt(ProjectRiskSummary::incompleteTaskCount).sum();
         int overdueTaskCount = summaries.stream().mapToInt(ProjectRiskSummary::overdueTaskCount).sum();
         int blockedTaskCount = summaries.stream().mapToInt(ProjectRiskSummary::blockedTaskCount).sum();
+        int openDefectCount = summaries.stream().mapToInt(ProjectRiskSummary::openDefectCount).sum();
         return new PortfolioRiskSummary(analysisDate, analysisTimestamp, summaries.size(), taskCount,
             completedTaskCount, incompleteTaskCount, overdueTaskCount, blockedTaskCount, activeRisks.size(),
-                countBySeverity(activeRisks), countByCategory(activeRisks), summaries);
+                countBySeverity(activeRisks), countByCategory(activeRisks), summaries, openDefectCount);
     }
 
         private ProjectRiskSummary summarize(Project project, LocalDate analysisDate, List<Task> tasks, List<Risk> allRisks) {
@@ -170,12 +175,15 @@ public class RiskAnalysisService {
         int blockedTaskCount = (int) tasks.stream()
             .filter(task -> task.getStatus() == TaskStatus.BLOCKED)
             .count();
+        int openDefectCount = (int) tasks.stream()
+            .filter(task -> task.isDefect() && task.getStatus() != TaskStatus.DONE)
+            .count();
         LocalDate recordedAnalysisDate = project.getLastAnalysisDate() == null
             ? analysisDate : project.getLastAnalysisDate();
         return new ProjectRiskSummary(project.getId(), project.getName(), recordedAnalysisDate,
             project.getLastAnalysisAt(), tasks.size(), completedTaskCount, tasks.size() - completedTaskCount,
             overdueTaskCount, blockedTaskCount, activeRisks.size(), countBySeverity(responses),
-            countByCategory(responses), responses);
+            countByCategory(responses), responses, openDefectCount, MilestoneSummary.of(tasks, analysisDate));
     }
 
         private ProjectResponse toProjectResponse(Project project, ProjectRiskSummary summary) {
@@ -183,7 +191,7 @@ public class RiskAnalysisService {
             project.getDescription(), project.getCreatedAt(), project.getUpdatedAt(),
             summary.analysisDate(), summary.analysisTimestamp(), summary.taskCount(),
             summary.completedTaskCount(), summary.incompleteTaskCount(), summary.overdueTaskCount(),
-            summary.blockedTaskCount(), summary.risksBySeverity());
+            summary.blockedTaskCount(), summary.risksBySeverity(), summary.openDefectCount());
         }
 
     private RiskResponse toResponse(Risk risk) {

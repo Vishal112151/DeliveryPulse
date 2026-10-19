@@ -12,7 +12,7 @@ import { RisksPage } from './risks.page';
 import { UploadPage } from './upload.page';
 
 const severities = (critical = 0, high = 0, medium = 0, low = 0) => ({ CRITICAL: critical, HIGH: high, MEDIUM: medium, LOW: low });
-const categories = { OVERDUE_TASK: 0, BLOCKED_TASK: 0, CRITICAL_TASK_AT_RISK: 0, DEPENDENCY_RISK: 0, DELIVERY_RISK: 0, DATA_QUALITY_WARNING: 0 };
+const categories = { OVERDUE_TASK: 0, BLOCKED_TASK: 0, CRITICAL_TASK_AT_RISK: 0, DEPENDENCY_RISK: 0, DELIVERY_RISK: 0, DATA_QUALITY_WARNING: 0, DEFECT_RISK: 0, RECURRING_BLOCKER: 0 };
 
 function risk(id: string, severity: RiskResponse['severity'], title: string): RiskResponse {
   return { id, category: 'BLOCKED_TASK', severity, certainty: 'CONFIRMED', status: 'OPEN', title,
@@ -25,7 +25,7 @@ function project(name: string, analyzed: boolean, risks: RiskResponse[] = []): P
     analysisTimestamp: analyzed ? '2026-10-15T08:00:00Z' : null, taskCount: 8, completedTaskCount: 2,
     incompleteTaskCount: 6, overdueTaskCount: 2, blockedTaskCount: 1, activeRiskCount: risks.length,
     risksBySeverity: severities(risks.filter((r) => r.severity === 'CRITICAL').length, risks.filter((r) => r.severity === 'HIGH').length),
-    risksByCategory: categories, risks };
+    risksByCategory: categories, risks, openDefectCount: 0, milestones: [] };
 }
 
 function portfolio(projects: ProjectRiskSummary[]): PortfolioRiskSummary {
@@ -34,7 +34,8 @@ function portfolio(projects: ProjectRiskSummary[]): PortfolioRiskSummary {
   return { analysisDate: '2026-10-15', analysisTimestamp: '2026-10-15T08:00:00Z', projectCount: projects.length,
     taskCount: sum('taskCount'), completedTaskCount: 2 * projects.length, incompleteTaskCount: 6 * projects.length,
     overdueTaskCount: sum('overdueTaskCount'), blockedTaskCount: sum('blockedTaskCount'),
-    activeRiskCount: sum('activeRiskCount'), risksBySeverity: severities(1, 1), risksByCategory: categories, projects };
+    activeRiskCount: sum('activeRiskCount'), risksBySeverity: severities(1, 1), risksByCategory: categories, projects,
+    openDefectCount: 0 };
 }
 
 describe('Pages against the API', () => {
@@ -125,28 +126,34 @@ describe('Pages against the API', () => {
 
   it('reports page shows the weekly window and per-project totals', () => {
     const fixture = render(ReportsPage);
+    const activity = { tasksAdded: 3, tasksCompleted: 2, tasksBlocked: 1, tasksUnblocked: 0, defectsOpened: 1, defectsClosed: 0 };
     http.expectOne('/api/reports/weekly').flush({ ...portfolio([project('CRM', true)]),
-      weekStartDate: '2026-10-09', weekEndDate: '2026-10-15' });
+      weekStartDate: '2026-10-09', weekEndDate: '2026-10-15', activity, activityByProject: { 'id-CRM': activity } });
     fixture.detectChanges();
 
     expect(text(fixture)).toContain('Oct 9, 2026 — Oct 15, 2026');
     expect(text(fixture)).toContain('CRM');
+    expect(text(fixture)).toContain('Task movement recorded by imports');
+    expect(text(fixture)).toContain('Newly blocked1');
   });
 
   it('project detail renders tasks and risk evidence returned by the API', () => {
     const fixture = render(ProjectDetailPage, [
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: 'p-1' }) } } },
     ]);
-    const summary = project('ECommerce', true, [risk('r1', 'CRITICAL', 'Critical-priority task at risk: EC-102')]);
+    const summary = { ...project('ECommerce', true, [risk('r1', 'CRITICAL', 'Critical-priority task at risk: EC-102')]),
+      milestones: [{ name: 'Beta', milestoneDate: '2026-10-20', taskCount: 4, completedTaskCount: 1, blockedTaskCount: 1,
+        openDefectCount: 1, status: 'AT_RISK' as const }] };
     http.expectOne('/api/projects/p-1').flush({ id: 'p-1', name: 'ECommerce', sourceSheetName: 'ECommerce',
       description: null, createdAt: '', updatedAt: '', analysisDate: '2026-10-15', analysisTimestamp: '2026-10-15T08:00:00Z',
       taskCount: 1, completedTaskCount: 0, incompleteTaskCount: 1, overdueTaskCount: 1, blockedTaskCount: 1,
-      risksBySeverity: severities(1) });
+      risksBySeverity: severities(1), openDefectCount: 1 });
     http.expectOne('/api/projects/p-1/risks').flush(summary);
     http.expectOne((request) => request.url === '/api/projects/p-1/tasks').flush({
       content: [{ id: 't1', projectId: 'p-1', taskId: 'EC-102', taskName: 'Payment Gateway Integration',
         teamOrModule: 'Backend', assignee: 'Meera', priority: 'CRITICAL', status: 'BLOCKED', startDate: '2026-10-09',
-        dueDate: '2026-10-13', overdue: true, blockerText: 'Vendor sandbox credentials pending', description: null }],
+        dueDate: '2026-10-13', overdue: true, blockerText: 'Vendor sandbox credentials pending', description: null,
+        issueType: 'DEFECT', milestone: 'Beta', milestoneDate: '2026-10-20' }],
       page: 0, size: 10, totalElements: 1, totalPages: 1, analysisDate: '2026-10-15',
       analysisTimestamp: '2026-10-15T08:00:00Z', sortBy: 'TASK_ID', sortDirection: 'ASC' });
     fixture.detectChanges();
@@ -157,5 +164,9 @@ describe('Pages against the API', () => {
     expect(text(fixture)).toContain('Vendor sandbox credentials pending');
     expect(text(fixture)).toContain('Critical-priority task at risk: EC-102');
     expect(text(fixture)).toContain('Task ID: EC-102');
+    expect(text(fixture)).toContain('Milestone · Beta');
+    expect(text(fixture)).toContain('1 / 4');
+    expect(text(fixture)).toContain('At Risk');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.type-tag')?.textContent).toBe('Defect');
   });
 });

@@ -279,4 +279,36 @@ class ProjectImportParserTests {
         assertThat(document.errors()).isEmpty();
         assertThat(document.projects().getFirst().tasks()).hasSize(1);
     }
+
+    @Test
+    void readsTypeAndSharesAMilestoneDateGivenOnOneRow() throws Exception {
+        String csv = "Task ID,Task Name,Priority,Status,Type,Milestone,Milestone Date\n"
+                + "A-1,Build,High,In Progress,Story,Beta,2026-11-01\n"
+                + "A-2,Crash on login,Critical,Not Started,Bug,beta,\n"
+                + "A-3,Docs,Low,Done,,,\n";
+        ImportDocument document = parser.parseCsv(new ByteArrayInputStream(
+                csv.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "Typed.csv");
+
+        assertThat(document.errors()).isEmpty();
+        var tasks = document.projects().getFirst().tasks();
+        assertThat(tasks).extracting(ImportedTask::issueType).containsExactly(
+                com.deliverypulse.shared.domain.IssueType.TASK, com.deliverypulse.shared.domain.IssueType.DEFECT,
+                com.deliverypulse.shared.domain.IssueType.TASK);
+        assertThat(tasks).extracting(ImportedTask::milestoneDate).containsExactly(
+                java.time.LocalDate.of(2026, 11, 1), java.time.LocalDate.of(2026, 11, 1), null);
+    }
+
+    @Test
+    void rejectsUnknownTypesConflictingMilestoneDatesAndDatesWithoutAMilestone() throws Exception {
+        String csv = "Task ID,Task Name,Priority,Status,Type,Milestone,Milestone Date\n"
+                + "A-1,One,High,Done,Chore,,\n"
+                + "A-2,Two,High,Done,,Beta,2026-11-01\n"
+                + "A-3,Three,High,Done,,Beta,2026-11-08\n"
+                + "A-4,Four,High,Done,,,2026-11-08\n";
+        ImportDocument document = parser.parseCsv(new ByteArrayInputStream(
+                csv.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "Bad.csv");
+
+        assertThat(document.errors()).extracting(ImportIssue::code).containsExactlyInAnyOrder(
+                "INVALID_TYPE", "CONFLICTING_MILESTONE_DATE", "MILESTONE_DATE_WITHOUT_MILESTONE");
+    }
 }
