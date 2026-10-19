@@ -76,6 +76,8 @@ app:
     # First admin, created only when there are no users. Without a password one is generated and logged once.
     admin-username: ${APP_ADMIN_USERNAME:admin}
     admin-password: ${APP_ADMIN_PASSWORD:}
+    # Break-glass: true sets admin-password on the admin at every start. Turn it off again after use.
+    admin-reset: ${APP_ADMIN_RESET:false}
     session-hours: ${APP_SESSION_HOURS:12}
   # Automated jobs, in APP_TIME_ZONE. Cron fields: second minute hour day-of-month month day-of-week.
   schedule:
