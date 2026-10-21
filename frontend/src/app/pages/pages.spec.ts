@@ -86,6 +86,7 @@ describe('Pages against the API', () => {
     const fixture = render(UploadPage);
     http.expectOne('/api/integrations/jira/status').flush({ configured: false, baseUrl: null, projectKeys: [], blockedLabel: 'blocked' });
     http.expectOne('/api/jobs').flush([]);
+    http.expectOne('/api/alerts').flush({ configured: false, mailServerConfigured: false, recipientCount: 0 });
     const file = new File(['Task ID,Task Name\n'], 'Broken.csv', { type: 'text/csv' });
     fixture.componentInstance.onFileInput({ target: { files: { item: () => file } } } as unknown as Event);
     fixture.componentInstance.upload();
@@ -107,9 +108,12 @@ describe('Pages against the API', () => {
     const refreshJob = { name: 'refresh', description: 'Sync Jira and analyze', cron: '0 0 6 * * *', scheduled: true,
       nextRunAt: '2026-10-20T06:00:00Z', running: false, lastRun: null };
     http.expectOne('/api/jobs').flush([refreshJob]);
+    http.expectOne('/api/alerts').flush({ configured: true, mailServerConfigured: true, recipientCount: 2 });
     fixture.detectChanges();
     expect(text(fixture)).toContain('Daily refresh');
     expect(text(fixture)).toContain('Not run since the backend started');
+    expect(text(fixture)).toContain('Email alerts');
+    expect(text(fixture)).toContain('On · 2 recipients');
 
     (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.run-button')!.click();
     http.expectOne('/api/jobs/refresh/run').flush({ startedAt: '', finishedAt: '2026-10-19T08:00:00Z', manual: true,

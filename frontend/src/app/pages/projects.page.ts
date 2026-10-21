@@ -7,11 +7,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ProjectResponse } from '../core/api.models';
 import { DeliveryPulseApi } from '../core/deliverypulse-api.service';
 import { LucideIconCompatComponent } from '../shared/lucide-icon-compat.component';
+import { HealthBadgeComponent } from '../shared/project-health';
 import { errorMessage } from '../shared/view-helpers';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LucideIconCompatComponent],
+  imports: [CommonModule, FormsModule, RouterLink, LucideIconCompatComponent, HealthBadgeComponent],
   template: `
     <section class="page-heading"><div><div class="eyebrow">PROJECT REGISTER</div><h1>Projects</h1><p class="heading-copy">Browse active delivery work and its latest risk profile.</p></div><div class="project-total">{{ projects().length }} projects</div></section>
     <section class="surface list-surface">
@@ -24,7 +25,7 @@ import { errorMessage } from '../shared/view-helpers';
           @for (project of filteredProjects(); track project.id) {
             <a class="project-row" [routerLink]="['/projects', project.id]">
               <div class="project-symbol">{{ project.name.slice(0, 1) }}</div>
-              <div class="project-name"><strong>{{ project.name }}</strong><span>{{ project.sourceSheetName || 'Project' }}{{ project.description ? ' · ' + project.description : '' }}</span></div>
+              <div class="project-name"><strong>{{ project.name }} <app-health-badge [risksBySeverity]="project.risksBySeverity" [analyzed]="project.analysisTimestamp !== null" /></strong><span>{{ project.sourceSheetName || 'Project' }}{{ project.description ? ' · ' + project.description : '' }}</span></div>
               <div class="project-stat"><strong>{{ project.taskCount }}</strong><span>tasks</span></div>
               <div class="project-stat"><strong>{{ project.completedTaskCount }}<small>/{{ project.taskCount }}</small></strong><span>complete</span></div>
               <div class="project-stat risk-stat" [class.has-risk]="riskTotal(project) > 0"><strong>{{ riskTotal(project) }}</strong><span>active risks</span></div>

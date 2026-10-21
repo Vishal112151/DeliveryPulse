@@ -52,7 +52,8 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/error",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/api/users/**", "/api/reports/weekly/snapshots/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users/**", "/api/reports/weekly/snapshots/**", "/api/alerts/**")
+                                .hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/integrations/jira/sync", "/api/jobs/*/run")
                                 .hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/uploads/**", "/api/projects/*/analyze",

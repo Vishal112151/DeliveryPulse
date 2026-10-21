@@ -93,7 +93,7 @@ class DeliveryJobsTests {
     @Test
     void reportsTheNextRunFromTheCronInTheConfiguredZone() {
         Clock clock = Clock.fixed(Instant.parse("2026-10-19T10:00:00Z"), ZoneId.of("Asia/Kolkata"));
-        DeliveryJobs jobs = new DeliveryJobs(null, null, null, null, clock, true, "0 0 6 * * *", "0 0 7 * * MON");
+        DeliveryJobs jobs = new DeliveryJobs(null, null, null, null, null, clock, true, "0 0 6 * * *", "0 0 7 * * MON");
 
         // 2026-10-19 15:30 in Kolkata: today's 06:00 has passed, so tomorrow 06:00 IST; next Monday 07:00 IST.
         assertThat(jobs.statuses()).extracting(DeliveryJobs.JobStatus::nextRunAt).containsExactly(

@@ -15,11 +15,12 @@ import { LucideIconCompatComponent } from '../shared/lucide-icon-compat.componen
 import { SeverityChartComponent } from '../shared/severity-chart.component';
 import { AnalyzeAllButtonComponent } from '../shared/analyze-all-button.component';
 import { AiInsightsPanelComponent } from '../shared/ai-insights-panel.component';
+import { HealthBadgeComponent, healthCounts } from '../shared/project-health';
 import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, LucideIconCompatComponent, SeverityChartComponent, AnalyzeAllButtonComponent, AiInsightsPanelComponent],
+  imports: [CommonModule, RouterLink, LucideIconCompatComponent, SeverityChartComponent, AnalyzeAllButtonComponent, AiInsightsPanelComponent, HealthBadgeComponent],
   template: `
     <section class="page-heading">
       <div>
@@ -69,12 +70,12 @@ import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers
           </section>
 
           <section class="surface comparison-panel">
-            <div class="section-heading"><div><div class="eyebrow">PROJECT COMPARISON</div><h2>Health at a glance</h2></div><a routerLink="/projects" class="text-link">Projects <lucide-icon [img]="ArrowIcon" [size]="14" /></a></div>
+            <div class="section-heading"><div><div class="eyebrow">PROJECT COMPARISON</div><h2>Health at a glance</h2>@if (healthCounts(data.projects); as counts) {<div class="health-summary"><span class="off">{{ counts.OFF_TRACK }} off track</span><span class="risk">{{ counts.AT_RISK }} at risk</span><span class="on">{{ counts.ON_TRACK }} on track</span>@if (counts.NOT_ANALYZED) {<span>{{ counts.NOT_ANALYZED }} not analyzed</span>}</div>}</div><a routerLink="/projects" class="text-link">Projects <lucide-icon [img]="ArrowIcon" [size]="14" /></a></div>
             <div class="comparison-list">
               @for (project of sortedProjects(data); track project.projectId) {
                 <a class="comparison-row" [routerLink]="['/projects', project.projectId]">
                   <div class="project-monogram">{{ project.projectName.slice(0, 1) }}</div>
-                  <div class="comparison-main"><div class="comparison-title"><strong>{{ project.projectName }}</strong><span>{{ project.activeRiskCount }} risk{{ project.activeRiskCount === 1 ? '' : 's' }} · {{ project.analysisTimestamp ? 'as of ' + formatDate(project.analysisDate) : 'not analyzed' }}</span></div>
+                  <div class="comparison-main"><div class="comparison-title"><strong>{{ project.projectName }} <app-health-badge [risksBySeverity]="project.risksBySeverity" [analyzed]="project.analysisTimestamp !== null" /></strong><span>{{ project.activeRiskCount }} risk{{ project.activeRiskCount === 1 ? '' : 's' }} · {{ project.analysisTimestamp ? 'as of ' + formatDate(project.analysisDate) : 'not analyzed' }}</span></div>
                     <div class="progress-track" [attr.aria-label]="completionLabel(project)"><span [style.width.%]="completionPercent(project)"></span></div>
                   </div>
                   <div class="comparison-rate">{{ completionPercent(project) }}%</div>
@@ -164,6 +165,7 @@ import { errorMessage, formatDate, formatDateTime } from '../shared/view-helpers
     @media (max-width:1050px) { .dashboard-grid { grid-template-columns:1fr; }.severity-panel,.comparison-panel { min-height:0; } }
     @media (max-width:720px) { .page-heading { align-items:flex-start; flex-direction:column; }.heading-actions { width:100%; justify-content:space-between; }.metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.metric-card { min-height:112px; padding:14px; }.metric-value { font-size:27px; }.severity-content { gap:20px; }.chart-wrap { width:160px; height:160px; }.risk-project-grid { grid-template-columns:1fr; } }
     @media (max-width:380px) { .severity-content { gap:8px; }.chart-wrap { width:140px; height:140px; }.severity-legend { min-width:100px; } }
+    .health-summary { display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; color:#7d877f; font-size:10px; font-weight:650; }.health-summary .off { color:#b8432f; }.health-summary .risk { color:#a8630f; }.health-summary .on { color:#3f7a33; }
   `],
 })
 export class DashboardPage {
@@ -179,6 +181,7 @@ export class DashboardPage {
   protected readonly AlertIcon = TriangleAlert;
   protected readonly formatDate = formatDate;
   protected readonly formatDateTime = formatDateTime;
+  protected readonly healthCounts = healthCounts;
 
   constructor() { this.refresh(); }
 

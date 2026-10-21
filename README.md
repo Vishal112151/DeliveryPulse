@@ -522,6 +522,29 @@ Cron fields are `second minute hour day-of-month month day-of-week`. `SCHEDULE_E
 
 If the backend is not running at the scheduled time, that run is skipped (no catch-up). Last-run results are kept in memory.
 
+### Email alerts
+
+When a mail server and recipients are set, the jobs also send plain-text emails:
+
+- **After each refresh:** the Critical and High findings that are new, or have come back, since just before that run, each with its explanation, evidence, next step, supporting task IDs and a link to the project. Nothing is sent when nothing is new.
+- **After the weekly report job:** the portfolio totals, the week's activity and every project's health, worst first.
+
+Admins can click **Send test email** in the **Automation** panel to receive every open Critical/High finding now. A failed email is reported in the job result but does not fail the job.
+
+```
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=you@gmail.com
+MAIL_PASSWORD=<16-character Gmail app password>
+ALERT_EMAIL_TO=pm@example.com, lead@example.com
+```
+
+For Gmail, turn on 2-step verification and create an app password at <https://myaccount.google.com/apppasswords>; your normal password will not work. `ALERT_EMAIL_FROM` defaults to `MAIL_USERNAME`, and links point to `APP_PUBLIC_URL` (default `FRONTEND_ORIGIN`). Emails go to the listed addresses and cover every project, so list only people who may see all of them.
+
+### Project health
+
+Every project shows a status worked out from its open findings: **Off track** with any Critical finding, **At risk** with any High finding, otherwise **On track** (or **Not analyzed**). It appears on the Dashboard, the Projects list, the project page (with the reason) and in the emails.
+
 ---
 
 ## 15. Users and access

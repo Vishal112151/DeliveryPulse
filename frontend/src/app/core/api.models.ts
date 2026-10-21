@@ -173,6 +173,13 @@ export interface JobRun {
   message: string;
 }
 
+/** Email alerts (admin only). */
+export interface AlertStatus {
+  configured: boolean;
+  mailServerConfigured: boolean;
+  recipientCount: number;
+}
+
 export interface JobStatus {
   name: 'refresh' | 'weekly-report';
   description: string;
