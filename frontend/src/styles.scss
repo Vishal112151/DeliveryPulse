@@ -9,8 +9,13 @@
 	--green: #c1ef74;
 	--forest: #182b27;
 	--rust: #c45e49;
+	/* Layered shadows: a tight contact shadow plus a soft ambient one. */
+	--shadow-card: 0 1px 2px rgba(24, 43, 39, .04), 0 4px 14px -6px rgba(24, 43, 39, .08);
+	--shadow-lift: 0 2px 4px rgba(24, 43, 39, .05), 0 14px 30px -12px rgba(24, 43, 39, .18);
+	--ease: cubic-bezier(.2, .7, .2, 1);
 	font-family: 'Manrope Variable', Manrope, sans-serif;
 	font-synthesis: none;
+	font-feature-settings: 'ss01', 'cv11';
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
@@ -20,7 +25,47 @@
 
 * { box-sizing: border-box; }
 html, body { min-width: 320px; min-height: 100%; margin: 0; }
-body { min-height: 100vh; }
+body {
+	min-height: 100vh;
+	/* A faint brand tint in the corner keeps large empty areas from looking flat. */
+	background:
+		radial-gradient(1200px 520px at 100% -10%, rgba(193, 239, 116, .16), transparent 60%),
+		radial-gradient(900px 480px at -10% 110%, rgba(24, 43, 39, .05), transparent 60%),
+		var(--paper);
+	background-attachment: fixed;
+}
 button, input, select { font: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #9bbd72; outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #9bbd72; outline-offset: 2px; }
 ::selection { color: #18322a; background: #dff3bf; }
+
+/* Numbers line up in tables, metrics and counters. */
+strong, td, .metric-value, .comparison-rate { font-variant-numeric: tabular-nums; }
+
+/* Depth for every card-like surface; component styles keep their own borders and colours. */
+.surface, .metric-card, .summary-metric, .automation, .upload-card, .jira-card, .insights, .risk-card {
+	box-shadow: var(--shadow-card);
+}
+/* Cards that are links lift slightly on hover. */
+a.risk-project, a.metric-card, .risk-project-grid > a {
+	transition: transform 180ms var(--ease), box-shadow 180ms var(--ease), border-color 180ms var(--ease);
+}
+a.risk-project:hover, a.metric-card:hover, .risk-project-grid > a:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--shadow-lift);
+}
+button { transition: transform 120ms var(--ease), box-shadow 160ms var(--ease), background-color 160ms var(--ease), border-color 160ms var(--ease); }
+button:not(:disabled):active { transform: translateY(1px); }
+
+/* Pages fade in instead of popping. */
+.page-content > *:not(router-outlet) { animation: page-enter 320ms var(--ease) both; }
+@keyframes page-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Quieter scrollbars. */
+* { scrollbar-width: thin; scrollbar-color: #cfd8cc transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 10px; background: #cfd8cc padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: #b6c3b2; }
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}

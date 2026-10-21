@@ -42,7 +42,7 @@ export function healthCounts(projects: { risksBySeverity: Partial<Record<RiskSev
   template: `<span class="health" [class]="'health ' + health().level.toLowerCase()" [title]="health().reason"><span class="dot"></span>{{ health().label }}@if (showReason()) {<span class="reason"> · {{ health().reason }}</span>}</span>`,
   styles: [`
     :host { display:inline-flex; }
-    .health { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:999px; font-size:9px; font-weight:750; white-space:nowrap; }
+    .health { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:750; white-space:nowrap; }
     .dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
     .reason { font-weight:500; }
     .off_track { color:#b8432f; background:#fdebe6; }

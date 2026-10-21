@@ -25,11 +25,11 @@ import { errorMessage } from './view-helpers';
   styles: [`
     :host { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .analyze-all { display: inline-flex; min-height: 36px; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #b6dc72;
-      border-radius: 6px; color: #1e3a25; background: #c1ef74; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+      border-radius: 6px; color: #1e3a25; background: #c1ef74; font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; }
     .analyze-all:hover:not(:disabled) { background: #b2e45f; }
     .analyze-all:disabled { cursor: default; opacity: .7; }
     .spinner { width: 14px; height: 14px; border: 2px solid #9fc65f; border-top-color: #1e3a25; border-radius: 50%; animation: spin .7s linear infinite; }
-    .analyze-error { color: #b2402c; font-size: 11px; }
+    .analyze-error { color: #b2402c; font-size: 13px; }
     @keyframes spin { to { transform: rotate(360deg); } }
   `],
 })
