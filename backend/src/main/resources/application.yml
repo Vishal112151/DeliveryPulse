@@ -72,6 +72,12 @@ app:
     max-risks: ${AI_MAX_RISKS:10}
     max-explained-risks: ${AI_MAX_EXPLAINED_RISKS:5}
     max-text-length: ${AI_MAX_TEXT_LENGTH:500}
+    # Optional second provider (gemini, anthropic or groq), tried when the first fails, e.g. on a quota limit.
+    # Same switch, authorization and limits as above; empty model picks the provider's default.
+    fallback:
+      provider: ${AI_FALLBACK_PROVIDER:}
+      api-key: ${AI_FALLBACK_API_KEY:}
+      model: ${AI_FALLBACK_MODEL:}
   auth:
     # First admin, created only when there are no users. Without a password one is generated and logged once.
     admin-username: ${APP_ADMIN_USERNAME:admin}
@@ -116,6 +122,9 @@ app:
     enabled: false
     api-key: ""
     external-data-sharing-authorized: false
+    fallback:
+      provider: ""
+      api-key: ""
   schedule:
     enabled: false
   auth:

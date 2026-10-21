@@ -43,7 +43,7 @@ CREATE ROLE deliverypulse_app WITH LOGIN PASSWORD 'replace-with-a-local-password
 CREATE DATABASE deliverypulse OWNER deliverypulse_app;
 ```
 
-That is all the manual SQL needed. Flyway creates and upgrades the tables when the backend starts (migrations `V1`–`V4` in `backend/src/main/resources/db/migration/`), and Hibernate then *validates* the schema — it never creates or alters tables itself. Do not edit an applied migration; add a new `V5__...sql` instead.
+That is all the manual SQL needed. Flyway creates and upgrades the tables when the backend starts (migrations `V1`–`V7` in `backend/src/main/resources/db/migration/`), and Hibernate then *validates* the schema — it never creates or alters tables itself. Do not edit an applied migration; add a new `V8__...sql` instead.
 
 To start over with an empty database (destroys all imported data):
 
@@ -120,14 +120,14 @@ java -jar target\deliverypulse-api-0.1.0-SNAPSHOT.jar
 
 ```powershell
 cd backend
-.\mvnw.cmd test            # 90 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
+.\mvnw.cmd test            # 123 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
 
 cd ..\frontend
-npm test -- --watch=false  # 31 Vitest tests
+npm test -- --watch=false  # 38 Vitest tests
 npm run build              # production build -> frontend\dist\frontend
 ```
 
-The backend tests use H2 in PostgreSQL mode, so they do not prove the PostgreSQL migrations. To check those, start the backend against PostgreSQL and look for `Successfully applied 4 migrations` (first run) or `Schema "public" is up to date` in the log.
+The backend tests use H2 in PostgreSQL mode, so they do not prove the PostgreSQL migrations. To check those, start the backend against PostgreSQL and look for `Successfully applied 7 migrations` (first run) or `Schema "public" is up to date` in the log.
 
 ---
 
@@ -289,6 +289,22 @@ Risk counts are counts of **findings**, not of tasks, and there is no weighted s
 
 The numbers in steps 6–7 assume the demo runs on 2026-10-15. On a different day the overdue-based counts will change, because analysis uses today's date.
 
+### Jira-based demonstration
+
+Use this flow when the database holds the Jira demo portfolio (section 13) instead of the workbook. Because the seeding script makes dates relative to the day it runs, the story stays the same whenever you demo.
+
+1. Start the backend and frontend (section 4) and sign in as the admin.
+2. **Upload data** → **Sync now** in the Sync from Jira panel → five projects are updated from Jira.
+3. **Dashboard** → **Analyze all projects** → totals and the severity chart.
+4. Open **Payments Revamp** → risk cards for the blocked Critical task, its recurrence, the overdue task and the open bugs, each with evidence and supporting task IDs. Point out the Milestones table.
+5. On the same page, **Generate AI insights** → executive summary, risk explanations, recommended actions and a weekly status draft, each statement labelled FACT or ASSUMPTION. On the **Dashboard**, the **Portfolio briefing** does the same across all projects.
+6. Open **Mobile App 3.0** (missed Beta milestone) and **Data Platform** (healthy, for contrast).
+7. **Reports** → weekly report with the week's activity; **Download CSV**. Pick a saved snapshot from the **Report** list.
+8. **Upload data** → **Automation** panel → the daily refresh and weekly report jobs with their next run times.
+9. Sign out and sign in as a Viewer with access to only some projects → other projects are not visible, and upload and analysis are not offered.
+
+Run analysis again at the start of every demo (step 3): overdue checks use today's date in `APP_TIME_ZONE`.
+
 ---
 
 ## 10. Troubleshooting
@@ -355,6 +371,14 @@ AI_EXTERNAL_DATA_SHARING_AUTHORIZED=true   # confirms you may send this project 
 
 Restart the backend, then check `GET /api/ai/status`: `"available": true` means it is ready.
 
+**Fallback provider (optional):** a second provider is tried with the same request when the first one fails, for example when the Gemini free-tier quota runs out. The panel shows the model that answered. For Groq (key from <https://console.groq.com/keys>):
+```
+AI_FALLBACK_PROVIDER=groq
+AI_FALLBACK_API_KEY=<your Groq API key>
+AI_FALLBACK_MODEL=llama-3.3-70b-versatile   # optional; this is the default
+```
+The fallback uses the same switch, data-sharing authorization and limits as the main provider, so it sends the same data, to a second company. Groq is called in JSON mode with the response schema in the prompt and at most 4,096 output tokens. Only when both providers fail does the panel fall back to the deterministic summary.
+
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `AI_INSIGHTS_ENABLED` | `false` | Master switch |
@@ -388,7 +412,7 @@ Restart the backend, then check `GET /api/ai/status`: `"available": true` means 
 
 ### Privacy
 
-When AI is enabled and authorized, each request sends to Anthropic: the project name, metrics, and the task ID, name, team, priority, status, dates and blocker text of up to `AI_MAX_TASKS` tasks, plus the stored risk findings. Assignee names and task descriptions are excluded unless you opt in. Only set `AI_EXTERNAL_DATA_SHARING_AUTHORIZED=true` if your organisation permits sending that data to Anthropic under your account's data-retention terms. Leave AI off for confidential projects.
+When AI is enabled and authorized, each request sends to the configured provider (Google or Anthropic): the project name, metrics, and the task ID, name, team, priority, status, dates and blocker text of up to `AI_MAX_TASKS` tasks, plus the stored risk findings. Assignee names and task descriptions are excluded unless you opt in. Only set `AI_EXTERNAL_DATA_SHARING_AUTHORIZED=true` if your organisation permits sending that data to that provider under your account's data-retention terms. Leave AI off for confidential projects.
 
 ### Cost
 
@@ -413,7 +437,7 @@ All AI tests use mocked or faked providers; no API key or paid access is needed:
 - **Endpoints:** both configurations through the Spring context.
 - **Panel:** Angular component tests.
 
-A live call to Anthropic has not been exercised because no key is configured in this environment.
+The Gemini key and the `gemini-flash-latest` model have been checked against the live API. A live call to Anthropic has not been exercised.
 
 
 ---
@@ -481,7 +505,7 @@ Use only fictional data in a personal Jira site. Don't copy real company project
 
 ### Tests
 
-The client is tested against a mocked HTTP server (paging, Basic auth, query, error handling, key validation), the field mapping against a recorded-style search response, and the sync end to end through the Spring context with only the Jira HTTP call mocked. The seeding script and the sync have not yet been run against a live Jira site.
+The client is tested against a mocked HTTP server (paging, Basic auth, query, error handling, key validation), the field mapping against a recorded-style search response, and the sync end to end through the Spring context with only the Jira HTTP call mocked. The seeding script and the sync have also been run against a live Jira Cloud site (all five demo projects).
 
 ---
 
