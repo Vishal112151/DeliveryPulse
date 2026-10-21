@@ -99,4 +99,10 @@ export const WEEKS = {
       'CRMX-4': 'indeterminate', 'OPS-7': 'indeterminate' },
     block: ['PAY-1', 'OPS-4', 'MOB-6'],
   },
+  // Demo day: Ops recovers (critical bug fixed, firewall approved) so the portfolio shows a spread of
+  // health: PAY and MOB off track, OPS and CRMX at risk (OPS-4 still flagged as a recurring blocker), DATA on track.
+  week4: {
+    status: { 'OPS-7': 'done' },
+    unblock: ['OPS-4'],
+  },
 };

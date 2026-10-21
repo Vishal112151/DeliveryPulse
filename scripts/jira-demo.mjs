@@ -5,6 +5,7 @@
 //   node scripts/jira-demo.mjs week1   # create projects PAY, MOB, DATA, CRMX, OPS with releases, components, issues
 //   node scripts/jira-demo.mjs week2   # unblock, finish and add issues
 //   node scripts/jira-demo.mjs week3   # block again (recurring blockers), fix bugs, add a critical bug
+//   node scripts/jira-demo.mjs week4   # demo day: Ops fixes its critical bug and gets the firewall approved
 //
 // Click "Sync now" in DeliveryPulse after each week. Reads JIRA_BASE_URL, JIRA_EMAIL and JIRA_API_TOKEN
 // from the repo-root .env (or the environment). It only touches these projects; the token is never printed.
