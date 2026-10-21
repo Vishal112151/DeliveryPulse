@@ -87,6 +87,11 @@ public class Task {
     @Column(name = "issue_type", nullable = false, length = 20)
     private IssueType issueType = IssueType.TASK;
 
+    /** The source's own type name (for example Story, Task or Bug); display only. */
+    @Size(max = 40)
+    @Column(name = "work_type", length = 40)
+    private String workType;
+
     @Size(max = 160)
     @Column(length = 160)
     private String milestone;
@@ -209,6 +214,14 @@ public class Task {
 
     public boolean isDefect() {
         return issueType == IssueType.DEFECT;
+    }
+
+    public String getWorkType() {
+        return workType;
+    }
+
+    public void setWorkType(String workType) {
+        this.workType = workType;
     }
 
     public String getMilestone() {

@@ -318,7 +318,8 @@ public class ProjectImportParser {
             ImportedTask task = new ImportedTask(row.number(), taskKey, taskName,
                     optional(teamOrModule), optional(assignee),
                     priority, status, startDate, dueDate, preserveOptional(blockerText),
-                    optional(value(row, columns, Column.DESCRIPTION)), issueType, optional(milestone), milestoneDate);
+                    optional(value(row, columns, Column.DESCRIPTION)), issueType, optional(milestone), milestoneDate,
+                    typeText.isBlank() ? null : typeText.substring(0, Math.min(typeText.length(), 40)));
             tasks.add(task);
             byKey.put(normalizedKey, task);
             rawBlockers.put(normalizedKey, blockerText);
@@ -404,7 +405,7 @@ public class ProjectImportParser {
         return tasks.stream().map(task -> task.milestone() == null ? task : new ImportedTask(task.row(),
                 task.taskKey(), task.taskName(), task.teamOrModule(), task.assignee(), task.priority(), task.status(),
                 task.startDate(), task.dueDate(), task.blockerText(), task.description(), task.issueType(),
-                task.milestone(), dates.get(task.milestone().toLowerCase(Locale.ROOT)))).toList();
+                task.milestone(), dates.get(task.milestone().toLowerCase(Locale.ROOT)), task.workType())).toList();
     }
 
     private LocalDate parseDate(CellValue cell, String sheet, int row, String column, List<ImportIssue> errors) {

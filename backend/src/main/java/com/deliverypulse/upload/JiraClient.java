@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 @EnableConfigurationProperties(JiraProperties.class)
 public class JiraClient {
 
-    static final String FIELDS = "summary,issuetype,priority,status,assignee,duedate,components,labels,"
+    static final String FIELDS = "summary,description,issuetype,priority,status,assignee,duedate,components,labels,"
             + "fixVersions,issuelinks,project";
     private static final Pattern PROJECT_KEY = Pattern.compile("[A-Z][A-Z0-9_]{0,49}");
     private static final int PAGE_SIZE = 100;

@@ -6,6 +6,8 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -17,6 +19,7 @@ import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.deliverypulse.alerts.AlertService;
 import com.deliverypulse.project.Project;
 import com.deliverypulse.project.ProjectRepository;
 import com.deliverypulse.report.WeeklyReportService;
@@ -40,6 +43,7 @@ public class DeliveryJobs {
     private final ProjectRepository projectRepository;
     private final RiskAnalysisService riskAnalysisService;
     private final WeeklyReportService weeklyReportService;
+    private final AlertService alertService;
     private final Clock clock;
     private final boolean schedulingEnabled;
     private final Map<String, String> crons;
@@ -47,7 +51,8 @@ public class DeliveryJobs {
     private final Map<String, Boolean> running = new ConcurrentHashMap<>();
 
     public DeliveryJobs(JiraSyncService jiraSyncService, ProjectRepository projectRepository,
-            RiskAnalysisService riskAnalysisService, WeeklyReportService weeklyReportService, Clock clock,
+            RiskAnalysisService riskAnalysisService, WeeklyReportService weeklyReportService,
+            AlertService alertService, Clock clock,
             @Value("${app.schedule.enabled:true}") boolean schedulingEnabled,
             @Value("${app.schedule.refresh-cron}") String refreshCron,
             @Value("${app.schedule.weekly-report-cron}") String weeklyReportCron) {
@@ -55,15 +60,17 @@ public class DeliveryJobs {
         this.projectRepository = projectRepository;
         this.riskAnalysisService = riskAnalysisService;
         this.weeklyReportService = weeklyReportService;
+        this.alertService = alertService;
         this.clock = clock;
         this.schedulingEnabled = schedulingEnabled;
         this.crons = Map.of(REFRESH, refreshCron, WEEKLY_REPORT, weeklyReportCron);
     }
 
-    /** Syncs Jira when it is configured, then analyzes every project as of today. */
+    /** Syncs Jira when it is configured, analyzes every project as of today, then emails new Critical/High risks. */
     public JobRun refresh(boolean manual) {
         return run(REFRESH, manual, () -> {
             List<String> parts = new ArrayList<>();
+            Set<UUID> openBefore = alertService.isConfigured() ? alertService.openAlertRiskIds() : Set.of();
             if (jiraSyncService.status().configured()) {
                 ImportSummary summary = jiraSyncService.sync();
                 parts.add("Jira sync: " + summary.projectCount() + " projects, " + summary.importedTaskCount() + " tasks");
@@ -82,6 +89,14 @@ public class DeliveryJobs {
                 }
             }
             parts.add("analyzed " + analyzed + " projects");
+            if (alertService.isConfigured()) {
+                try {
+                    int emailed = alertService.sendNewRisks(openBefore);
+                    parts.add(emailed == 0 ? "no new Critical/High risks to email" : "emailed " + emailed + " new risks");
+                } catch (AlertService.AlertException exception) {
+                    parts.add("alert email failed");
+                }
+            }
             if (!failed.isEmpty()) {
                 throw new IllegalStateException(String.join("; ", parts) + "; analysis failed for " + String.join(", ", failed));
             }
@@ -94,7 +109,16 @@ public class DeliveryJobs {
         return run(WEEKLY_REPORT, manual, () -> {
             WeeklyReportService.SnapshotSummary snapshot = weeklyReportService.saveSnapshot(
                     manual ? WeeklyReportSnapshot.Trigger.MANUAL : WeeklyReportSnapshot.Trigger.SCHEDULED);
-            return "Saved report for " + snapshot.weekStartDate() + " to " + snapshot.weekEndDate();
+            String saved = "Saved report for " + snapshot.weekStartDate() + " to " + snapshot.weekEndDate();
+            if (!alertService.isConfigured()) {
+                return saved;
+            }
+            try {
+                alertService.sendWeeklyReport(weeklyReportService.getWeeklyReport());
+                return saved + "; emailed the summary";
+            } catch (AlertService.AlertException exception) {
+                return saved + "; summary email failed";
+            }
         });
     }
 

@@ -43,7 +43,7 @@ CREATE ROLE deliverypulse_app WITH LOGIN PASSWORD 'replace-with-a-local-password
 CREATE DATABASE deliverypulse OWNER deliverypulse_app;
 ```
 
-That is all the manual SQL needed. Flyway creates and upgrades the tables when the backend starts (migrations `V1`–`V4` in `backend/src/main/resources/db/migration/`), and Hibernate then *validates* the schema — it never creates or alters tables itself. Do not edit an applied migration; add a new `V5__...sql` instead.
+That is all the manual SQL needed. Flyway creates and upgrades the tables when the backend starts (migrations `V1`–`V8` in `backend/src/main/resources/db/migration/`), and Hibernate then *validates* the schema — it never creates or alters tables itself. Do not edit an applied migration; add a new `V9__...sql` instead.
 
 To start over with an empty database (destroys all imported data):
 
@@ -120,14 +120,14 @@ java -jar target\deliverypulse-api-0.1.0-SNAPSHOT.jar
 
 ```powershell
 cd backend
-.\mvnw.cmd test            # 90 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
+.\mvnw.cmd test            # 123 JUnit tests; in-memory H2, no PostgreSQL or AI API key needed
 
 cd ..\frontend
-npm test -- --watch=false  # 31 Vitest tests
+npm test -- --watch=false  # 38 Vitest tests
 npm run build              # production build -> frontend\dist\frontend
 ```
 
-The backend tests use H2 in PostgreSQL mode, so they do not prove the PostgreSQL migrations. To check those, start the backend against PostgreSQL and look for `Successfully applied 4 migrations` (first run) or `Schema "public" is up to date` in the log.
+The backend tests use H2 in PostgreSQL mode, so they do not prove the PostgreSQL migrations. To check those, start the backend against PostgreSQL and look for `Successfully applied 8 migrations` (first run) or `Schema "public" is up to date` in the log.
 
 ---
 
@@ -289,6 +289,22 @@ Risk counts are counts of **findings**, not of tasks, and there is no weighted s
 
 The numbers in steps 6–7 assume the demo runs on 2026-10-15. On a different day the overdue-based counts will change, because analysis uses today's date.
 
+### Jira-based demonstration
+
+Use this flow when the database holds the Jira demo portfolio (section 13) instead of the workbook. Because the seeding script makes dates relative to the day it runs, the story stays the same whenever you demo.
+
+1. Start the backend and frontend (section 4) and sign in as the admin.
+2. **Upload data** → **Sync now** in the Sync from Jira panel → five projects are updated from Jira.
+3. **Dashboard** → **Analyze all projects** → totals and the severity chart.
+4. Open **Payments Revamp** → risk cards for the blocked Critical task, its recurrence, the overdue task and the open bugs, each with evidence and supporting task IDs. Point out the Milestones table.
+5. On the same page, **Generate AI insights** → executive summary, risk explanations, recommended actions and a weekly status draft, each statement labelled FACT or ASSUMPTION. On the **Dashboard**, the **Portfolio briefing** does the same across all projects.
+6. Open **Mobile App 3.0** (missed Beta milestone) and **Data Platform** (healthy, for contrast).
+7. **Reports** → weekly report with the week's activity; **Download CSV**. Pick a saved snapshot from the **Report** list.
+8. **Upload data** → **Automation** panel → the daily refresh and weekly report jobs with their next run times.
+9. Sign out and sign in as a Viewer with access to only some projects → other projects are not visible, and upload and analysis are not offered.
+
+Run analysis again at the start of every demo (step 3): overdue checks use today's date in `APP_TIME_ZONE`.
+
 ---
 
 ## 10. Troubleshooting
@@ -355,6 +371,14 @@ AI_EXTERNAL_DATA_SHARING_AUTHORIZED=true   # confirms you may send this project 
 
 Restart the backend, then check `GET /api/ai/status`: `"available": true` means it is ready.
 
+**Fallback provider (optional):** a second provider is tried with the same request when the first one fails, for example when the Gemini free-tier quota runs out. The panel shows the model that answered. For Groq (key from <https://console.groq.com/keys>):
+```
+AI_FALLBACK_PROVIDER=groq
+AI_FALLBACK_API_KEY=<your Groq API key>
+AI_FALLBACK_MODEL=openai/gpt-oss-120b   # optional; this is the default
+```
+The fallback uses the same switch, data-sharing authorization and limits as the main provider, so it sends the same data, to a second company. Groq is called in JSON mode with the response schema in the prompt and at most 4,096 output tokens. Only when both providers fail does the panel fall back to the deterministic summary.
+
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `AI_INSIGHTS_ENABLED` | `false` | Master switch |
@@ -388,7 +412,7 @@ Restart the backend, then check `GET /api/ai/status`: `"available": true` means 
 
 ### Privacy
 
-When AI is enabled and authorized, each request sends to Anthropic: the project name, metrics, and the task ID, name, team, priority, status, dates and blocker text of up to `AI_MAX_TASKS` tasks, plus the stored risk findings. Assignee names and task descriptions are excluded unless you opt in. Only set `AI_EXTERNAL_DATA_SHARING_AUTHORIZED=true` if your organisation permits sending that data to Anthropic under your account's data-retention terms. Leave AI off for confidential projects.
+When AI is enabled and authorized, each request sends to the configured provider (Google or Anthropic): the project name, metrics, and the task ID, name, team, priority, status, dates and blocker text of up to `AI_MAX_TASKS` tasks, plus the stored risk findings. Assignee names and task descriptions are excluded unless you opt in. Only set `AI_EXTERNAL_DATA_SHARING_AUTHORIZED=true` if your organisation permits sending that data to that provider under your account's data-retention terms. Leave AI off for confidential projects.
 
 ### Cost
 
@@ -413,7 +437,7 @@ All AI tests use mocked or faked providers; no API key or paid access is needed:
 - **Endpoints:** both configurations through the Spring context.
 - **Panel:** Angular component tests.
 
-A live call to Anthropic has not been exercised because no key is configured in this environment.
+The Gemini key and the `gemini-flash-latest` model have been checked against the live API. A live call to Anthropic has not been exercised.
 
 
 ---
@@ -442,7 +466,8 @@ Optional: `JIRA_BLOCKED_LABEL` (default `blocked`), `JIRA_TIMEOUT` (default `30s
 | --- | --- |
 | Project | The Jira project (its name) |
 | Task ID / Task Name | Issue key / Summary |
-| Type | Issue type `Bug` or `Defect` → Defect; anything else → Task |
+| Type | Issue type `Bug` or `Defect` → Defect (used by the defect and milestone rules); anything else → Task. The Jira type name itself (Story, Task, Bug, …) is kept and shown in the task table |
+| Description | Description, converted to plain text (paragraphs and • bullets, up to 4,000 characters), shown under **Details** in the task table |
 | Priority | Highest/Blocker/Critical → Critical, High/Major → High, Medium (or none) → Medium, Low/Lowest/Minor/Trivial → Low; others → Medium with a warning |
 | Status | Done category → Done; else the blocked label or a status named `Blocked` → Blocked; else In Progress / To Do by status category |
 | Team/Module, Assignee | First component, assignee display name |
@@ -450,7 +475,7 @@ Optional: `JIRA_BLOCKED_LABEL` (default `blocked`), `JIRA_TIMEOUT` (default `30s
 | Milestone + date | Fix version with the earliest release date |
 | Dependencies | "is blocked by" links. Blockers in the same project become dependency records; all blocker keys are kept as blocker text |
 
-Descriptions are not imported. Issues deleted in Jira stay in DeliveryPulse with a `TASK_NOT_IN_UPLOAD` warning, as with uploads. If a Jira project has the same name as an uploaded project, the sync updates that project.
+Issues deleted in Jira stay in DeliveryPulse with a `TASK_NOT_IN_UPLOAD` warning, as with uploads. If a Jira project has the same name as an uploaded project, the sync updates that project.
 
 ### Demo data in your own Jira
 
@@ -481,7 +506,7 @@ Use only fictional data in a personal Jira site. Don't copy real company project
 
 ### Tests
 
-The client is tested against a mocked HTTP server (paging, Basic auth, query, error handling, key validation), the field mapping against a recorded-style search response, and the sync end to end through the Spring context with only the Jira HTTP call mocked. The seeding script and the sync have not yet been run against a live Jira site.
+The client is tested against a mocked HTTP server (paging, Basic auth, query, error handling, key validation), the field mapping against a recorded-style search response, and the sync end to end through the Spring context with only the Jira HTTP call mocked. The seeding script and the sync have also been run against a live Jira Cloud site (all five demo projects).
 
 ---
 
@@ -497,6 +522,29 @@ Two jobs run inside the backend, in `APP_TIME_ZONE`:
 Cron fields are `second minute hour day-of-month month day-of-week`. `SCHEDULE_ENABLED=false` turns the timers off; admins can still run each job from the **Automation** panel on **Upload data**, which also shows the next run and the last result. On **Reports**, admins can pick a saved report from the **Report** list to reopen an earlier week exactly as it was.
 
 If the backend is not running at the scheduled time, that run is skipped (no catch-up). Last-run results are kept in memory.
+
+### Email alerts
+
+When a mail server and recipients are set, the jobs also send plain-text emails:
+
+- **After each refresh:** the Critical and High findings that are new, or have come back, since just before that run, each with its explanation, evidence, next step, supporting task IDs and a link to the project. Nothing is sent when nothing is new.
+- **After the weekly report job:** the portfolio totals, the week's activity and every project's health, worst first.
+
+Admins can click **Send test email** in the **Automation** panel to receive every open Critical/High finding now. A failed email is reported in the job result but does not fail the job.
+
+```
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=you@gmail.com
+MAIL_PASSWORD=<16-character Gmail app password>
+ALERT_EMAIL_TO=pm@example.com, lead@example.com
+```
+
+For Gmail, turn on 2-step verification and create an app password at <https://myaccount.google.com/apppasswords>; your normal password will not work. `ALERT_EMAIL_FROM` defaults to `MAIL_USERNAME`, and links point to `APP_PUBLIC_URL` (default `FRONTEND_ORIGIN`). Emails go to the listed addresses and cover every project, so list only people who may see all of them.
+
+### Project health
+
+Every project shows a status worked out from its open findings: **Off track** with any Critical finding, **At risk** with any High finding, otherwise **On track** (or **Not analyzed**). It appears on the Dashboard, the Projects list, the project page (with the reason) and in the emails.
 
 ---
 

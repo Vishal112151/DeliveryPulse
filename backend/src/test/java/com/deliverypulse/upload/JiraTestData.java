@@ -15,6 +15,13 @@ final class JiraTestData {
               {"key": "DPDEMO-1", "fields": {
                 "project": {"key": "DPDEMO", "name": "DeliveryPulse Demo"},
                 "summary": "Checkout API", "issuetype": {"name": "Story"}, "priority": {"name": "High"},
+                "description": {"type": "doc", "version": 1, "content": [
+                  {"type": "paragraph", "content": [{"type": "text", "text": "Expose checkout to "},
+                                                    {"type": "text", "text": "partners", "marks": [{"type": "strong"}]},
+                                                    {"type": "text", "text": "."}]},
+                  {"type": "bulletList", "content": [
+                    {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Idempotent"}]}]},
+                    {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Rate limited"}]}]}]}]},
                 "status": {"name": "In Progress", "statusCategory": {"key": "indeterminate"}},
                 "assignee": {"displayName": "Asha"}, "duedate": "2026-10-15",
                 "components": [{"name": "Backend"}], "labels": [],

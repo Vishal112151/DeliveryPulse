@@ -6,6 +6,7 @@ import {
   AiStatusResponse,
   ImportSummary,
   JiraStatusResponse,
+  AlertStatus,
   JobRun,
   JobStatus,
   ReportSnapshotSummary,
@@ -109,6 +110,14 @@ export class DeliveryPulseApi {
 
   runJob(name: JobStatus['name']): Observable<JobRun> {
     return this.http.post<JobRun>(`${this.baseUrl}/jobs/${name}/run`, null);
+  }
+
+  getAlertStatus(): Observable<AlertStatus> {
+    return this.http.get<AlertStatus>(`${this.baseUrl}/alerts`);
+  }
+
+  sendTestAlert(): Observable<{ sent: boolean; riskCount: number; message: string }> {
+    return this.http.post<{ sent: boolean; riskCount: number; message: string }>(`${this.baseUrl}/alerts/test`, null);
   }
 
   getReportSnapshots(): Observable<ReportSnapshotSummary[]> {

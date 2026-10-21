@@ -40,8 +40,20 @@ public record AiInsightsProperties(
     /** Google's alias for its current Flash model; pinned versions get retired for new accounts. */
     static final String DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
 
+    static final String DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
+
     private static String defaultModel(String provider) {
-        return provider.equalsIgnoreCase("gemini") ? DEFAULT_GEMINI_MODEL : "claude-opus-5-5";
+        if (provider.equalsIgnoreCase("gemini")) {
+            return DEFAULT_GEMINI_MODEL;
+        }
+        return provider.equalsIgnoreCase("groq") ? DEFAULT_GROQ_MODEL : "claude-opus-5-5";
+    }
+
+    /** The same limits and privacy settings for a second provider; a blank model picks that provider's default. */
+    public AiInsightsProperties forProvider(String otherProvider, String otherApiKey, String otherModel) {
+        return new AiInsightsProperties(enabled, otherProvider, otherApiKey, otherModel, timeout, maxRetries,
+                maxOutputTokens, serverSideFallbacks, externalDataSharingAuthorized, includeAssigneeNames,
+                includeTaskDescriptions, maxTasks, maxRisks, maxExplainedRisks, maxTextLength);
     }
 
     public boolean hasApiKey() {

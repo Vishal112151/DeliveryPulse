@@ -32,6 +32,11 @@ class JiraIssueMapperTests {
         assertThat(checkout.milestone()).isEqualTo("Alpha");
         assertThat(checkout.milestoneDate()).isEqualTo(LocalDate.of(2026, 10, 16));
         assertThat(checkout.dueDate()).isEqualTo(LocalDate.of(2026, 10, 15));
+        // The Jira type name is kept for display; the description is converted from Atlassian Document Format.
+        assertThat(checkout.workType()).isEqualTo("Story");
+        assertThat(checkout.issueType()).isEqualTo(IssueType.TASK);
+        assertThat(checkout.description()).isEqualTo("Expose checkout to partners.\n• Idempotent\n• Rate limited");
+        assertThat(tasks.get("DPDEMO-2").description()).isNull();
 
         // Blocked label (any case) wins over In Progress; the earliest-dated fix version is the milestone.
         assertThat(tasks.get("DPDEMO-2").status()).isEqualTo(TaskStatus.BLOCKED);
@@ -41,6 +46,7 @@ class JiraIssueMapperTests {
         ImportedTask crash = tasks.get("DPDEMO-3");
         assertThat(crash.status()).isEqualTo(TaskStatus.DONE);
         assertThat(crash.issueType()).isEqualTo(IssueType.DEFECT);
+        assertThat(crash.workType()).isEqualTo("Bug");
         assertThat(crash.priority()).isEqualTo(Priority.CRITICAL);
         assertThat(crash.milestone()).isNull();
 

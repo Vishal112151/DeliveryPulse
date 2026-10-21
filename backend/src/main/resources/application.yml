@@ -72,6 +72,12 @@ app:
     max-risks: ${AI_MAX_RISKS:10}
     max-explained-risks: ${AI_MAX_EXPLAINED_RISKS:5}
     max-text-length: ${AI_MAX_TEXT_LENGTH:500}
+    # Optional second provider (gemini, anthropic or groq), tried when the first fails, e.g. on a quota limit.
+    # Same switch, authorization and limits as above; empty model picks the provider's default.
+    fallback:
+      provider: ${AI_FALLBACK_PROVIDER:}
+      api-key: ${AI_FALLBACK_API_KEY:}
+      model: ${AI_FALLBACK_MODEL:}
   auth:
     # First admin, created only when there are no users. Without a password one is generated and logged once.
     admin-username: ${APP_ADMIN_USERNAME:admin}
@@ -84,6 +90,20 @@ app:
     enabled: ${SCHEDULE_ENABLED:true}
     refresh-cron: ${SCHEDULE_REFRESH_CRON:0 0 6 * * *}
     weekly-report-cron: ${SCHEDULE_WEEKLY_REPORT_CRON:0 0 7 * * MON}
+  # Optional email alerts: new Critical/High risks after each refresh, and the weekly report summary.
+  # Off until MAIL_HOST and ALERT_EMAIL_TO are set.
+  alerts:
+    mail:
+      host: ${MAIL_HOST:}
+      port: ${MAIL_PORT:587}
+      username: ${MAIL_USERNAME:}
+      password: ${MAIL_PASSWORD:}
+      starttls: ${MAIL_STARTTLS:true}
+    from: ${ALERT_EMAIL_FROM:${MAIL_USERNAME:}}
+    # Comma-separated addresses.
+    to: ${ALERT_EMAIL_TO:}
+    # Base address for links in the emails.
+    app-url: ${APP_PUBLIC_URL:${FRONTEND_ORIGIN:http://localhost:4200}}
   # Optional read-only Jira Cloud sync. Off until all four of base URL, email, token and project keys are set.
   jira:
     base-url: ${JIRA_BASE_URL:}
@@ -116,6 +136,13 @@ app:
     enabled: false
     api-key: ""
     external-data-sharing-authorized: false
+    fallback:
+      provider: ""
+      api-key: ""
+  alerts:
+    mail:
+      host: ""
+    to: ""
   schedule:
     enabled: false
   auth:

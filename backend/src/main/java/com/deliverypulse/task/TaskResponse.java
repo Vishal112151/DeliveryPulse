@@ -23,5 +23,6 @@ public record TaskResponse(
         String description,
         IssueType issueType,
         String milestone,
-        LocalDate milestoneDate) {
+        LocalDate milestoneDate,
+        String workType) {
 }

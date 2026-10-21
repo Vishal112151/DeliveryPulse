@@ -5,12 +5,14 @@
 //   node scripts/jira-demo.mjs week1   # create projects PAY, MOB, DATA, CRMX, OPS with releases, components, issues
 //   node scripts/jira-demo.mjs week2   # unblock, finish and add issues
 //   node scripts/jira-demo.mjs week3   # block again (recurring blockers), fix bugs, add a critical bug
+//   node scripts/jira-demo.mjs week4   # demo day: Ops fixes its critical bug and gets the firewall approved
+//   node scripts/jira-demo.mjs descriptions   # set the issue descriptions on existing issues (safe to rerun)
 //
 // Click "Sync now" in DeliveryPulse after each week. Reads JIRA_BASE_URL, JIRA_EMAIL and JIRA_API_TOKEN
 // from the repo-root .env (or the environment). It only touches these projects; the token is never printed.
 
 import { readFileSync } from 'node:fs';
-import { ISSUES, PROJECTS, WEEKS } from './jira-demo-data.mjs';
+import { DESCRIPTIONS, ISSUES, PROJECTS, WEEKS } from './jira-demo-data.mjs';
 
 const env = { ...loadEnv(new URL('../.env', import.meta.url)), ...process.env };
 const BASE = (env.JIRA_BASE_URL ?? '').replace(/\/+$/, '');
@@ -57,6 +59,24 @@ async function run(plan) {
   for (const ref of plan.block ?? []) await setLabel(need(keys, ref), 'add');
   for (const ref of plan.unblock ?? []) await setLabel(need(keys, ref), 'remove');
   for (const [dependent, blocker] of plan.links ?? []) await ensureBlockedBy(need(keys, dependent), need(keys, blocker));
+  for (const ref of plan.describe ?? []) {
+    if (!keys[ref] || !DESCRIPTIONS[ref]) continue;
+    await jira('PUT', `/rest/api/3/issue/${keys[ref]}`, { fields: { description: adf(DESCRIPTIONS[ref]) } });
+    console.log(`  ${keys[ref]} description set`);
+  }
+}
+
+/** Plain text to Atlassian Document Format: "- " lines become a bullet list, other lines become paragraphs. */
+function adf(text) {
+  const content = [];
+  for (const line of text.split('\n').map((value) => value.trim()).filter(Boolean)) {
+    const item = line.startsWith('- ') ? line.slice(2) : null;
+    const paragraph = (value) => ({ type: 'paragraph', content: [{ type: 'text', text: value }] });
+    if (item === null) { content.push(paragraph(line)); continue; }
+    if (content.at(-1)?.type !== 'bulletList') content.push({ type: 'bulletList', content: [] });
+    content.at(-1).content.push({ type: 'listItem', content: [paragraph(item)] });
+  }
+  return { type: 'doc', version: 1, content };
 }
 
 async function ensureProject({ key, name }, leadAccountId) {
@@ -111,6 +131,7 @@ async function createIssue(ref, types, accountId) {
     project: { key: project }, summary, issuetype: { name: types.has(type) ? type : 'Task' },
     priority: { name: priority }, components: [{ name: component }], fixVersions: [{ name: version }],
     labels: [demoLabel(ref)],
+    ...(DESCRIPTIONS[ref] ? { description: adf(DESCRIPTIONS[ref]) } : {}),
     ...(due == null ? {} : { duedate: day(due) }),
     ...(assigned ? { assignee: { accountId } } : {}),
   };

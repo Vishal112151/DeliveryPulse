@@ -83,10 +83,50 @@ final class JiraIssueMapper {
                 null,
                 date(fields.path("duedate")),
                 blockers.isEmpty() ? null : String.join(", ", blockers),
-                null,
+                limit(description(fields.path("description")), MAX_DESCRIPTION),
                 isDefect(fields.path("issuetype").path("name").asText("")) ? IssueType.DEFECT : IssueType.TASK,
                 milestone == null ? null : limit(text(milestone.path("name")), 160),
-                milestone == null ? null : date(milestone.path("releaseDate")));
+                milestone == null ? null : date(milestone.path("releaseDate")),
+                limit(text(fields.path("issuetype").path("name")), 40));
+    }
+
+    static final int MAX_DESCRIPTION = 4000;
+
+    /**
+     * Jira Cloud returns descriptions as Atlassian Document Format. Keeps the text: one line per paragraph or
+     * heading, "• " before list items, and hard breaks as new lines. Formatting, images and mentions' markup go.
+     */
+    static String description(JsonNode node) {
+        if (node.isTextual()) {
+            return text(node);
+        }
+        StringBuilder out = new StringBuilder();
+        appendText(node, out, "");
+        String result = out.toString().replaceAll("\n{3,}", "\n\n").strip();
+        return result.isEmpty() ? null : result;
+    }
+
+    private static void appendText(JsonNode node, StringBuilder out, String prefix) {
+        switch (node.path("type").asText("")) {
+            case "text" -> out.append(node.path("text").asText(""));
+            case "hardBreak" -> out.append('\n');
+            case "mention", "emoji" -> out.append(node.path("attrs").path("text").asText(""));
+            case "listItem" -> {
+                out.append(prefix);
+                node.path("content").forEach(child -> appendText(child, out, ""));
+                return;
+            }
+            case "paragraph", "heading", "codeBlock", "blockquote" -> {
+                node.path("content").forEach(child -> appendText(child, out, prefix));
+                out.append('\n');
+                return;
+            }
+            case "bulletList", "orderedList" -> {
+                node.path("content").forEach(child -> appendText(child, out, "• "));
+                return;
+            }
+            default -> node.path("content").forEach(child -> appendText(child, out, prefix));
+        }
     }
 
     /** Done always wins; otherwise the blocked label or a status named "Blocked"; otherwise the status category. */

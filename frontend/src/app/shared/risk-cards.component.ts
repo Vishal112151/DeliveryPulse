@@ -42,16 +42,16 @@ import { titleCase } from './view-helpers';
     .risk-marker.medium { background: #d5b642; box-shadow: 0 0 0 4px #f9f4df; }
     .risk-marker.low { background: #80a976; box-shadow: 0 0 0 4px #edf4e9; }
     .risk-title-line { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
-    h3 { margin: 0; color: #263630; font-size: 13px; font-weight: 700; }
-    p { margin: 6px 0 0; color: #657169; font-size: 12px; line-height: 1.55; }
-    .certainty { padding: 3px 6px; border-radius: 3px; color: #4f7049; background: #edf4e8; font-size: 9px; font-weight: 750; text-transform: uppercase; }
+    h3 { margin: 0; color: #263630; font-size: 15.5px; font-weight: 700; }
+    p { margin: 6px 0 0; color: #657169; font-size: 14.5px; line-height: 1.55; }
+    .certainty { padding: 3px 6px; border-radius: 3px; color: #4f7049; background: #edf4e8; font-size: 11px; font-weight: 750; text-transform: uppercase; }
     .certainty.potential { color: #986b24; background: #fbf2df; }
     .certainty.quality { color: #68756c; background: #eef0ed; }
-    .risk-category { color: #89938c; font-size: 10px; white-space: nowrap; }
-    .evidence-line, .action-line { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; color: #42564a; font-size: 11px; line-height: 1.45; }
-    .evidence-line > span:first-child, .action-line > span:first-child { color: #89938c; font-size: 9px; font-weight: 750; letter-spacing: .5px; text-transform: uppercase; }
+    .risk-category { color: #89938c; font-size: 12px; white-space: nowrap; }
+    .evidence-line, .action-line { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; color: #42564a; font-size: 13px; line-height: 1.45; }
+    .evidence-line > span:first-child, .action-line > span:first-child { color: #89938c; font-size: 11px; font-weight: 750; letter-spacing: .5px; text-transform: uppercase; }
     .evidence-detail { color: #89938c; }
-    .empty-inline { padding: 24px 0; color: #78837b; font-size: 12px; }
+    .empty-inline { padding: 24px 0; color: #78837b; font-size: 14.5px; }
     @media (max-width: 650px) { .risk-row { grid-template-columns: 9px minmax(0, 1fr); } .risk-category { grid-column: 2; } }
   `],
 })
