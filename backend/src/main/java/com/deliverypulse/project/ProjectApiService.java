@@ -111,6 +111,6 @@ public class ProjectApiService {
         return new TaskResponse(task.getId(), task.getProject().getId(), task.getTaskKey(), task.getTaskName(),
                 task.getTeamOrModule(), task.getAssignee(), task.getPriority(), task.getStatus(),
                 task.getStartDate(), task.getDueDate(), isOverdue, task.getBlockerText(), task.getDescription(),
-                task.getIssueType(), task.getMilestone(), task.getMilestoneDate());
+                task.getIssueType(), task.getMilestone(), task.getMilestoneDate(), task.getWorkType());
     }
 }

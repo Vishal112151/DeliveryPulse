@@ -52,6 +52,8 @@ export interface TaskResponse {
   issueType: IssueType;
   milestone: string | null;
   milestoneDate: string | null;
+  /** The source's own type name, e.g. Story, Task or Bug (null for data imported before it was stored). */
+  workType: string | null;
 }
 
 export interface TaskPageResponse {

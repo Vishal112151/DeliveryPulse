@@ -43,7 +43,7 @@ CREATE ROLE deliverypulse_app WITH LOGIN PASSWORD 'replace-with-a-local-password
 CREATE DATABASE deliverypulse OWNER deliverypulse_app;
 ```
 
-That is all the manual SQL needed. Flyway creates and upgrades the tables when the backend starts (migrations `V1`–`V7` in `backend/src/main/resources/db/migration/`), and Hibernate then *validates* the schema — it never creates or alters tables itself. Do not edit an applied migration; add a new `V8__...sql` instead.
+That is all the manual SQL needed. Flyway creates and upgrades the tables when the backend starts (migrations `V1`–`V8` in `backend/src/main/resources/db/migration/`), and Hibernate then *validates* the schema — it never creates or alters tables itself. Do not edit an applied migration; add a new `V9__...sql` instead.
 
 To start over with an empty database (destroys all imported data):
 
@@ -127,7 +127,7 @@ npm test -- --watch=false  # 38 Vitest tests
 npm run build              # production build -> frontend\dist\frontend
 ```
 
-The backend tests use H2 in PostgreSQL mode, so they do not prove the PostgreSQL migrations. To check those, start the backend against PostgreSQL and look for `Successfully applied 7 migrations` (first run) or `Schema "public" is up to date` in the log.
+The backend tests use H2 in PostgreSQL mode, so they do not prove the PostgreSQL migrations. To check those, start the backend against PostgreSQL and look for `Successfully applied 8 migrations` (first run) or `Schema "public" is up to date` in the log.
 
 ---
 
@@ -466,7 +466,8 @@ Optional: `JIRA_BLOCKED_LABEL` (default `blocked`), `JIRA_TIMEOUT` (default `30s
 | --- | --- |
 | Project | The Jira project (its name) |
 | Task ID / Task Name | Issue key / Summary |
-| Type | Issue type `Bug` or `Defect` → Defect; anything else → Task |
+| Type | Issue type `Bug` or `Defect` → Defect (used by the defect and milestone rules); anything else → Task. The Jira type name itself (Story, Task, Bug, …) is kept and shown in the task table |
+| Description | Description, converted to plain text (paragraphs and • bullets, up to 4,000 characters), shown under **Details** in the task table |
 | Priority | Highest/Blocker/Critical → Critical, High/Major → High, Medium (or none) → Medium, Low/Lowest/Minor/Trivial → Low; others → Medium with a warning |
 | Status | Done category → Done; else the blocked label or a status named `Blocked` → Blocked; else In Progress / To Do by status category |
 | Team/Module, Assignee | First component, assignee display name |
@@ -474,7 +475,7 @@ Optional: `JIRA_BLOCKED_LABEL` (default `blocked`), `JIRA_TIMEOUT` (default `30s
 | Milestone + date | Fix version with the earliest release date |
 | Dependencies | "is blocked by" links. Blockers in the same project become dependency records; all blocker keys are kept as blocker text |
 
-Descriptions are not imported. Issues deleted in Jira stay in DeliveryPulse with a `TASK_NOT_IN_UPLOAD` warning, as with uploads. If a Jira project has the same name as an uploaded project, the sync updates that project.
+Issues deleted in Jira stay in DeliveryPulse with a `TASK_NOT_IN_UPLOAD` warning, as with uploads. If a Jira project has the same name as an uploaded project, the sync updates that project.
 
 ### Demo data in your own Jira
 

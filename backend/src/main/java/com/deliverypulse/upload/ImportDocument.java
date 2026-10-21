@@ -47,7 +47,9 @@ record ImportedTask(
         String description,
         com.deliverypulse.shared.domain.IssueType issueType,
         String milestone,
-        java.time.LocalDate milestoneDate) {
+        java.time.LocalDate milestoneDate,
+        /** The source's own type name (Jira issue type or the upload's Type value), for display. */
+        String workType) {
 }
 
 record ImportedDependency(String dependentTaskKey, String prerequisiteTaskKey, String sourceText) {

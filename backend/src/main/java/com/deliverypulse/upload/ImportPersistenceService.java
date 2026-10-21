@@ -111,6 +111,7 @@ public class ImportPersistenceService {
                             importTask.teamOrModule(), importTask.assignee(), importTask.priority(), importTask.status(),
                             importTask.startDate(), importTask.dueDate(), importTask.blockerText(), importTask.description(),
                             importTask.issueType(), importTask.milestone(), importTask.milestoneDate());
+                    task.setWorkType(importTask.workType());
                     tasksByKey.put(key, task);
                     changes.add(new TaskStatusChange(task, null, task.getStatus(), importedAt));
                 } else {
@@ -119,6 +120,7 @@ public class ImportPersistenceService {
                             importTask.priority(), importTask.status(), importTask.startDate(), importTask.dueDate(),
                             importTask.blockerText(), importTask.description(), importTask.issueType(),
                             importTask.milestone(), importTask.milestoneDate());
+                    task.setWorkType(importTask.workType());
                     if (previousStatus != task.getStatus()) {
                         changes.add(new TaskStatusChange(task, previousStatus, task.getStatus(), importedAt));
                     }
