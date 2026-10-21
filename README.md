@@ -375,7 +375,7 @@ Restart the backend, then check `GET /api/ai/status`: `"available": true` means 
 ```
 AI_FALLBACK_PROVIDER=groq
 AI_FALLBACK_API_KEY=<your Groq API key>
-AI_FALLBACK_MODEL=llama-3.3-70b-versatile   # optional; this is the default
+AI_FALLBACK_MODEL=openai/gpt-oss-120b   # optional; this is the default
 ```
 The fallback uses the same switch, data-sharing authorization and limits as the main provider, so it sends the same data, to a second company. Groq is called in JSON mode with the response schema in the prompt and at most 4,096 output tokens. Only when both providers fail does the panel fall back to the deterministic summary.
 

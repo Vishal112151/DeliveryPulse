@@ -70,13 +70,13 @@ class GroqLlmClientTests {
         LlmResult<Answer> result = client(0).generate(PROMPT, Answer.class);
 
         assertThat(result.content()).isEqualTo(new Answer("AT-2 is overdue.", List.of("AT-2")));
-        assertThat(result.model()).isEqualTo("llama-3.3-70b-versatile");
+        assertThat(result.model()).isEqualTo("openai/gpt-oss-120b");
         assertThat(result.inputTokens()).isEqualTo(120);
         assertThat(result.outputTokens()).isEqualTo(40);
         CapturedRequest request = captured.get();
         assertThat(request.path()).isEqualTo("/v1/chat/completions");
         assertThat(request.authorization()).isEqualTo("Bearer test-only-key");
-        assertThat(request.body().path("model").asText()).isEqualTo("llama-3.3-70b-versatile");
+        assertThat(request.body().path("model").asText()).isEqualTo("openai/gpt-oss-120b");
         assertThat(request.body().at("/response_format/type").asText()).isEqualTo("json_object");
         assertThat(request.body().path("max_completion_tokens").asLong()).isEqualTo(GroqLlmClient.MAX_COMPLETION_TOKENS);
         assertThat(request.body().at("/messages/0/content").asText()).startsWith("system rules").contains("taskIds");
@@ -123,7 +123,7 @@ class GroqLlmClientTests {
     void defaultsToTheGroqModelWhenNoneIsSet() {
         AiInsightsProperties properties = properties("", null);
 
-        assertThat(properties.model()).isEqualTo("llama-3.3-70b-versatile");
+        assertThat(properties.model()).isEqualTo("openai/gpt-oss-120b");
         assertThat(new GroqLlmClient(properties).isConfigured()).isFalse();
     }
 
@@ -146,7 +146,7 @@ class GroqLlmClientTests {
 
     private static String response(String finishReason, String text) throws IOException {
         var root = JSON.createObjectNode();
-        root.put("model", "llama-3.3-70b-versatile");
+        root.put("model", "openai/gpt-oss-120b");
         var choice = root.putArray("choices").addObject();
         choice.put("finish_reason", finishReason);
         choice.putObject("message").put("role", "assistant").put("content", text);

@@ -40,7 +40,7 @@ public record AiInsightsProperties(
     /** Google's alias for its current Flash model; pinned versions get retired for new accounts. */
     static final String DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
 
-    static final String DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+    static final String DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 
     private static String defaultModel(String provider) {
         if (provider.equalsIgnoreCase("gemini")) {
